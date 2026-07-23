@@ -1,0 +1,12 @@
+services:
+    tritonserver:
+        container_name: triton-server
+        ports:
+            - '8000:8000'
+            - '8001:8001'
+            - '8002:8002'
+        volumes:
+            - './served_models:/served_models'
+        image: nvcr.io/nvidia/tritonserver:26.01-py3
+        command: tritonserver --model-repository=/served_models
+        runtime: nvidia

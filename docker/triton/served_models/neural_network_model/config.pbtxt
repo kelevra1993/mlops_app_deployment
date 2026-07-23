@@ -1,0 +1,19 @@
+name: "model"
+platform: "onnxruntime_onnx"
+max_batch_size: 128
+input [
+  {
+    name: "Input-Producer/Placeholders/Images/Placeholder_1:0"
+    data_type: TYPE_FP32
+    format: FORMAT_NHWC
+    dims: [ 300, 300, 3 ]
+  }
+]
+output [
+  {
+    name: "Outputs/Softmax:0"
+    data_type: TYPE_FP32
+    dims: [ 2 ]
+  }
+]
+version_policy: { specific: { versions: [1]}}
