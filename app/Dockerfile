@@ -1,6 +1,14 @@
 # Use the official Python 3.13 slim image as the base
 FROM python:3.13-slim
 
+# Install system dependencies required by standard opencv-python.
+# (If you switch to opencv-python-headless in pyproject.toml, you can delete this RUN block).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 \
+    libglib2.0-0 \
+    libxcb1 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Set the working directory inside the container
 WORKDIR /app
 
@@ -21,6 +29,7 @@ EXPOSE 7860
 
 # Force Gradio to listen on all network interfaces (required for Docker/Kubernetes)
 ENV GRADIO_SERVER_NAME="0.0.0.0"
+ENV PYTHONPATH="/app"
 
 # Command to run the application
-CMD ["uv", "run", "python", "gradio/gradio_app.py"]
+CMD ["/app/.venv/bin/python", "gradio/gradio_app.py"]

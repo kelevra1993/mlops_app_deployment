@@ -1,0 +1,99 @@
+# 1. Specifies which Kubernetes API group parses this file.
+# 'apps/v1' => standard group for workloads like Deployments, DaemonSets, and StatefulSets.
+apiVersion: apps/v1
+
+# 2. Defines the exact type of object you want to create.
+# A 'Deployment' : manages identical Pods, handles rolling updates, and automatically replaces failed Pods.
+kind: Deployment
+
+# 3. Contains metadata to name and tag this Deployment object within the cluster.
+metadata:
+  # The unique name for this Deployment object.
+  name: gradio-deployment
+  # Labels are key-value metadata tags used for organization, logging, and filtering.
+  # Here the key-value pair component-frontend are arbitrarily set and could be anything else.
+  labels:
+    app: gradio
+    component: frontend
+
+# 4. The specification for the Deployment's behavior
+spec:
+  # Number of pods that we always want to be running
+  replicas: 4
+
+  # The "Selector" is how this Deployment finds and manages its Pods.
+  # It tells the Deployment: "You are in charge of any Pod that has this exact tag."
+  selector:
+    matchLabels:
+      app: gradio
+
+  # 5. The blueprint used to create every individual Pod.
+  template:
+    metadata:
+      # Labels stamped onto every Pod created by this Deployment.
+      # MUST match 'selector.matchLabels' above so the Deployment can track them.
+      labels:
+        app: gradio
+        component: frontend
+
+    # 6. The internal configuration of the Pod itself
+    spec:
+      containers:
+      # A list of containers to run inside this Pod (usually just one per Pod).
+      - name: gradio-container
+
+        # The exact Docker image URI pushed to Artifact Registry
+        image: europe-west4-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry/gradio-app:v1
+
+        # Always repull the image
+        imagePullPolicy: Always
+
+        # Opens port 7860 on the container so Kubernetes can route web traffic into Gradio
+        ports:
+        - containerPort: 7860
+          name: http
+
+        # Environment variables injected into the Python app at runtime
+        env:
+        # Matches the variable your Python script expects for the backend URL
+        - name: TRITON_SERVER_URL
+          value: "triton-service:8001"
+
+        # The dynamic environment variable using the Downward API
+        - name: REPLICA_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+
+# --- Separates the Deployment block above from this Service block below ---
+---
+# 1. Core API group for networking resources
+apiVersion: v1
+
+# 2. We are creating a Service object
+kind: Service
+
+# 3. Metadata for the Service itself
+metadata:
+  name: gradio-service
+  labels:
+    app: gradio
+    component: frontend
+
+# 4. The Service specification
+spec:
+  # Instructs Google Cloud to provision an external, public-facing IP address
+  type: LoadBalancer
+
+  # 5. The Selector (The most important part of the Service)
+  # The Service will continuously look for any Pods in the cluster with this exact label
+  # and automatically route internet traffic to them.
+  selector:
+    app: gradio
+
+  # 6. Port mappings
+  ports:
+    # 'port': The standard port exposed to the outside world (Port 80 is default for HTTP)
+  - port: 80
+    # 'targetPort': The port your actual Gradio Python application is running on inside the container
+    targetPort: 7860

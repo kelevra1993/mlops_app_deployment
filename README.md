@@ -41,6 +41,14 @@ You should see something like this :
 gke-machine-learning-machine-learning-82e85027-128t   Ready    <none>   3h47m   v1.35.6-gke.1049000
 gke-machine-learning-machine-learning-82e85027-t93d   Ready    <none>   3h47m   v1.35.6-gke.1049000
 '''
+- Deploy the gradio app using kubernetes it will get the docker image, and create as much containers as specified by our gradio.yaml file.
+  - kubectl apply -f gradio.yaml
+- To watch the pods start
+  - kubectl get pods -l app=gradio --watch
+- To get the ip for the specific load balancer
+  - kubectl get service gradio-service --watch
+
+
 
 - Configure connection to Artifact Registry
   - gcloud auth configure-docker "LOCATION"-docker.pkg.dev
