@@ -10,9 +10,10 @@ Gcloud Steps :
   - gcloud auth application-default login
 
 
-Terraform Steps On Mac:
+Terraform Steps On Mac/Ubuntu:
 - Install Hashicorp Tap :
   - brew tap hashicorp/tap
+  - sudo snap install terraform --classic
 - Install Terraform
   - brew install hashicorp/tap/terraform
 - Test it out
@@ -44,6 +45,23 @@ gke-machine-learning-machine-learning-82e85027-t93d   Ready    <none>   3h47m   
 - Configure connection to Artifact Registry
   - gcloud auth configure-docker "LOCATION"-docker.pkg.dev
 In our case : "gcloud auth configure-docker europe-west4-docker.pkg.dev"
+
+
+Docker Building :
+- docker cross platform build (since we are on an arm based linux architecture)
+  - docker buildx create --name cross-compiler --use
+  - docker buildx inspect --bootstrap
+- Build and send it to the artifact registry
+  - docker buildx build --platform linux/amd64 --load -t europe-west4-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry/gradio-app:v1 .
+- Push to the artifacts registry
+  - Might need to reauthenticate : "gcloud auth configure-docker europe-west4-docker.pkg.dev"
+  - docker push europe-west4-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry/gradio-app:v1
+- gcloud artifacts docker images list europe-west4-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry
+
+
+# Uploading Models To Google Cloud
+- Uploading models to google cloud
+  - gcloud storage cp -r served_models/ gs://machine-learning-ops-images-bucket-2026/
 
 Next Steps :
 

@@ -38,14 +38,16 @@ def process_image(uploaded_image, selected_inference_image):
         selected_inference_image (str): The filename of the selected image from the dropdown.
         
     Returns:
-        tuple: (image_name, score, predicted_class)
+        tuple: (image_name, score, predicted_class, image_path)
     """
     image_name = "Unknown"
     image_to_process = None
+    image_path = None
     
     if uploaded_image is not None:
         # If user uploaded an image, it takes precedence
         image_name = os.path.basename(uploaded_image)
+        image_path = uploaded_image
         # Read image using cv2 (Gradio returns filepath when type='filepath')
         image_to_process = cv2.imread(uploaded_image)
     elif selected_inference_image is not None and selected_inference_image != "":
@@ -58,11 +60,11 @@ def process_image(uploaded_image, selected_inference_image):
         if os.path.exists(image_path):
             image_to_process = cv2.imread(image_path)
     else:
-        return "No image selected", 0.0, "N/A"
+        return "No image selected", 0.0, "N/A", None
         
     if image_to_process is None:
-        return image_name, 0.0, "Failed to load image"
+        return image_name, 0.0, "Failed to load image", None
         
     predicted_class, score = perform_inference(image_to_process)
     
-    return image_name, score, predicted_class
+    return image_name, score, predicted_class, image_path

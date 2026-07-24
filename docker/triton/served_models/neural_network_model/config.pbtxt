@@ -1,4 +1,4 @@
-name: "model"
+name: "neural_network_model"
 platform: "onnxruntime_onnx"
 max_batch_size: 128
 input [

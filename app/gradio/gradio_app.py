@@ -18,6 +18,7 @@ with gr.Blocks(title="Triton Inference App") as demo:
             submit_btn = gr.Button("Run Inference", variant="primary")
             
         with gr.Column():
+            out_image = gr.Image(type="filepath", label="Inferred Image")
             out_image_name = gr.Textbox(label="Image Name")
             out_score = gr.Number(label="Prediction Score")
             out_class = gr.Textbox(label="Predicted Class")
@@ -26,8 +27,12 @@ with gr.Blocks(title="Triton Inference App") as demo:
     submit_btn.click(
         fn=process_image,
         inputs=[upload_input, dropdown_input],
-        outputs=[out_image_name, out_score, out_class]
+        outputs=[out_image_name, out_score, out_class, out_image]
     )
+
+    # Mutually exclusive inputs: clear the other when one is changed, but only if the changed input has a value
+    upload_input.change(fn=lambda val: None if val is not None else gr.update(), inputs=upload_input, outputs=dropdown_input)
+    dropdown_input.change(fn=lambda val: None if val else gr.update(), inputs=dropdown_input, outputs=upload_input)
 
 if __name__ == "__main__":
     demo.launch(server_name="0.0.0.0", server_port=7860)
