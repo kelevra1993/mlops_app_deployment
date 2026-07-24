@@ -11,3 +11,9 @@ wheels/
 
 # IDE
 .idea/
+
+# Terraform
+.terraform/
+*tfstate*
+*terraform.lock*
+*.md
