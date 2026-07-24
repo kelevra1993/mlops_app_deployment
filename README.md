@@ -60,10 +60,10 @@ Docker Building :
   - docker buildx create --name cross-compiler --use
   - docker buildx inspect --bootstrap
 - Build and send it to the artifact registry
-  - docker buildx build --platform linux/amd64 --load -t europe-west4-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry/gradio-app:v1 .
+  - docker buildx build --platform linux/amd64 --load -t europe-west4-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry/gradio-app:v2 .
 - Push to the artifacts registry
   - Might need to reauthenticate : "gcloud auth configure-docker europe-west4-docker.pkg.dev"
-  - docker push europe-west4-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry/gradio-app:v1
+  - docker push europe-west4-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry/gradio-app:v2
 - gcloud artifacts docker images list europe-west4-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry
 
 
