@@ -122,3 +122,55 @@ def get_images(path, basename=False, sort=False, mix=False, coherence=False):
         images = sorted(images)
 
     return images
+
+
+def perform_inference(image):
+    """
+    Performs neural network inference on an input image.
+
+    Args:
+        image (numpy.ndarray): The input image loaded via OpenCV (BGR format).
+
+    Returns:
+        tuple: A tuple containing the predicted class (str) and the prediction score (float).
+    """
+    if image is None:
+        return "Unknown", 0.0
+
+    input_tensor = 'Input-Producer/Placeholders/Images/Placeholder_1:0'
+    output_tensor = 'Outputs/Softmax:0'
+
+    try:
+        # Initialize Triton Inference Server client
+        client = get_inference_server_client(triton_server_url="localhost:8001")
+    except Exception as e:
+        print(f"Error connecting to Triton Server: {e}")
+        return "Error", 0.0
+
+    # Preprocess the image to match the neural network input shape (300x300)
+    preprocessed_image = preprocess(image, height=300, width=300, keep_ratio=True, center=False)
+    
+    # Expand dimensions to add the batch dimension expected by the model
+    preprocessed_image = np.expand_dims(preprocessed_image, 0)
+
+    try:
+        # Run the neural network inference
+        prediction = run_neural_network_inference(
+            data=preprocessed_image,
+            client=client,
+            input_tensor=input_tensor,
+            output_tensor=output_tensor
+        )[0]
+    except Exception as e:
+        print(f"Error during inference: {e}")
+        return "Error", 0.0
+
+    # Map the prediction scores to their respective classes
+    # Index 0 is 'squares' and index 1 is 'circles'
+    squares_score = np.round(prediction[0], 4)
+    circles_score = np.round(prediction[1], 4)
+
+    if squares_score > circles_score:
+        return "squares", float(squares_score)
+    else:
+        return "circles", float(circles_score)
