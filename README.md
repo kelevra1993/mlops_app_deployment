@@ -21,8 +21,29 @@ Terraform Steps On Mac:
   - terraform -install-autocomplete
 - Initialize working directory
   - terraform init
+- Working with Terraform
+  - terraform fmt : For formatting
+  - terraform plan : For planning changes
+  - terraform apply : For applying changes
 
+Kubernetes Steps On Mac :
+- Install GKE CLOUD AUTHENTICATION PLUGIN for Kubernetes
+  - gcloud components install gke-gcloud-auth-plugin
+- Get credentials for your local machine :
+  - gcloud container clusters get-credentials "CLUSTER_NAME" --zone "ZONE" --project "PROJECT_NAME"
+In our case """gcloud container clusters get-credentials machine-learning-cluster --zone europe-west4-b  --project ml-ops-classifier-app"""
+- In order to verify that you have access to the nodes
+  - kubectl get nodes
+You should see something like this :
+'''
+# In our case we had 2 nodes
+gke-machine-learning-machine-learning-82e85027-128t   Ready    <none>   3h47m   v1.35.6-gke.1049000
+gke-machine-learning-machine-learning-82e85027-t93d   Ready    <none>   3h47m   v1.35.6-gke.1049000
+'''
 
+- Configure connection to Artifact Registry
+  - gcloud auth configure-docker "LOCATION"-docker.pkg.dev
+In our case : "gcloud auth configure-docker europe-west4-docker.pkg.dev"
 
 Next Steps :
 

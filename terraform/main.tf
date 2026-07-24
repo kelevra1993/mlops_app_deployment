@@ -29,7 +29,7 @@ resource "google_compute_network" "machine_learning_virtual_private_network" {
 resource "google_compute_subnetwork" "kubernetes_sub_network" {
   name          = "kubernetes-sub-network"
   ip_cidr_range = "10.0.0.0/16"
-  region        = "europe-west1"
+  region        = "europe-west4"
   network       = google_compute_network.machine_learning_virtual_private_network.id
 }
 
@@ -37,7 +37,7 @@ resource "google_compute_subnetwork" "kubernetes_sub_network" {
 #    - Zonal cluster to save costs for learning
 resource "google_container_cluster" "primary_cluster" {
   name     = "machine-learning-cluster"
-  location = "europe-west1-b"
+  location = "europe-west4-b"
 
   # Attach it to the VPC and Subnet created above
   network    = google_compute_network.machine_learning_virtual_private_network.id
@@ -120,19 +120,15 @@ resource "google_project_iam_member" "node_service_account_bigquery" {
 # 6. Define the Custom Node Pool (The Worker Virtual Machines)
 resource "google_container_node_pool" "primary_nodes" {
   name       = "machine-learning-node-pool"
-  location   = "europe-west1-b"
+  location   = "europe-west4-b"
   cluster    = google_container_cluster.primary_cluster.name
   node_count = 2
 
   # Define the machine types and set the gpu's
   node_config {
-    machine_type = "n1-standard-4"
+    machine_type = "e2-standard-4"
     disk_size_gb = 100
 
-    guest_accelerator {
-      type  = "nvidia-tesla-t4"
-      count = 1
-    }
 
     # Attach our custom Service Account to the nodes
     service_account = google_service_account.kubernetes_node_service_account.email
@@ -153,7 +149,7 @@ resource "google_storage_bucket" "image_storage_bucket" {
   # WARNING: Cloud Storage bucket names must be GLOBALLY unique across all of Google Cloud.
   # You might need to add some random numbers to the end of this name so it doesn't clash.
   name     = "machine-learning-ops-images-bucket-2026"
-  location = "europe-west1"
+  location = "europe-west4"
 
   # Setting this to true means if we ever want to destroy our project,
   # Terraform is allowed to delete this bucket even if there are images inside it.
@@ -165,7 +161,7 @@ resource "google_storage_bucket" "image_storage_bucket" {
 # 8. Create a BigQuery Dataset (The container for our tables)
 resource "google_bigquery_dataset" "prediction_dataset" {
   dataset_id = "machine_learning_predictions"
-  location   = "europe-west1"
+  location   = "europe-west4"
 
   # Equivalent to force_destroy. Allows Terraform to delete this dataset
   # even if it still contains tables.
@@ -196,7 +192,7 @@ resource "google_bigquery_table" "prediction_history_table" {
 
 # 10. Create an Artifact Registry Repository for Docker Images
 resource "google_artifact_registry_repository" "docker_repository" {
-  location      = "europe-west1"
+  location      = "europe-west4"
   repository_id = "machine-learning-artifacts-registry"
   description   = "Docker repository for Gradio and Triton container images"
   format        = "DOCKER"
@@ -205,7 +201,7 @@ resource "google_artifact_registry_repository" "docker_repository" {
 # 11. Create a Cloud Router (Required by Cloud Network Address Translation [NAT])
 resource "google_compute_router" "network_address_translation_router" {
   name    = "machine-learning-network-address-translation-router"
-  region  = "europe-west1"
+  region  = "europe-west4"
   network = google_compute_network.machine_learning_virtual_private_network.id
 }
 
