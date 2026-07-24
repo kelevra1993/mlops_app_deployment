@@ -7,7 +7,10 @@ from gradio_functions import process_image, get_inference_data_images
 inference_images = get_inference_data_images()
 image_choices = [os.path.basename(img) for img in inference_images]
 
+replica_name = os.getenv("REPLICA_NAME", "POD NOT IDENTIFIED")
+
 with gr.Blocks(title="Triton Inference App") as demo:
+    gr.Markdown(f"**Replica:** {replica_name}")
     gr.Markdown("# Image Classification Inference")
     gr.Markdown("Upload your own image or select one from the `inference_data` folder to run inference.")
     

@@ -43,7 +43,7 @@ spec:
       - name: gradio-container
 
         # The exact Docker image URI pushed to Artifact Registry
-        image: europe-west4-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry/gradio-app:v1
+        image: europe-west4-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry/gradio-app:v2
 
         # Always repull the image
         imagePullPolicy: Always
