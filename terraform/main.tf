@@ -117,17 +117,18 @@ resource "google_project_iam_member" "node_service_account_bigquery" {
   member  = "serviceAccount:${google_service_account.kubernetes_node_service_account.email}"
 }
 
-# 6. Define the Custom Node Pool (The Worker Virtual Machines)
-resource "google_container_node_pool" "primary_nodes" {
-  name       = "machine-learning-node-pool"
+# 6.a. Define the Custom Node Pool (The Worker Virtual Machines)
+# First we start with nodes that only have CPUs
+resource "google_container_node_pool" "gradio_nodes" {
+  name       = "gradio-machine-learning-node-pool"
   location   = "europe-west4-b"
   cluster    = google_container_cluster.primary_cluster.name
-  node_count = 2
+  node_count = 4
 
   # Define the machine types and set the gpu's
   node_config {
     machine_type = "e2-standard-4"
-    disk_size_gb = 100
+    disk_size_gb = 50
 
 
     # Attach our custom Service Account to the nodes
@@ -140,7 +141,39 @@ resource "google_container_node_pool" "primary_nodes" {
     ]
 
     # Free-text 'hashtags' stamped onto our VMs so our firewall rules can target them specifically later.
-    tags = ["google-kubernetes-engine-node", "machine-learning-ops-cluster"]
+    tags = ["google-kubernetes-engine-node", "machine-learning-ops-cluster", "gradio-node"]
+  }
+}
+
+# 6.b. Then the nodes that will a gpu since they must have a gpu
+resource "google_container_node_pool" "triton_nodes" {
+  name       = "triton-machine-learning-node-pool"
+  location   = "europe-west4-b"
+  cluster    = google_container_cluster.primary_cluster.name
+  node_count = 1
+
+  # Define the machine types and set the gpu's
+  node_config {
+    machine_type = "g2-standard-4"
+    disk_size_gb = 50
+
+    # Add GPU to the node
+    guest_accelerator {
+      type  = "nvidia-l4"
+      count = 1
+    }
+
+    # Attach our custom Service Account to the nodes
+    service_account = google_service_account.kubernetes_node_service_account.email
+
+    # Using the single "cloud-platform" master scope, we instead rely entirely on the
+    # fine-grained IAM roles we explicitly granted to the Service Account above.
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform"
+    ]
+
+    # Free-text 'hashtags' stamped onto our VMs so our firewall rules can target them specifically later.
+    tags = ["google-kubernetes-engine-node", "machine-learning-ops-cluster", "triton-node"]
   }
 }
 

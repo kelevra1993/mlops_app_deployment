@@ -9,6 +9,6 @@ terraform {
 
 provider "google" {
   project = "ml-ops-classifier-app"
-  region  = "europe-west1"
-  zone    = "europe-west1-b"
+  region  = "europe-west4"
+  zone    = "europe-west4-b"
 }

@@ -71,6 +71,8 @@ Docker Building :
 - Uploading models to google cloud
   - gcloud storage cp -r served_models/ gs://machine-learning-ops-images-bucket-2026/
 
+
+
 Next Steps :
 
 - Make Gradio App
@@ -88,3 +90,7 @@ Next Steps :
   - Set Up Of Secret Managers
   - Set Up Of Artifacts Registry
   - Set Up Of VPC For Communication
+
+# Important todos to be tackled later
+- Move the terraform state file to google cloud storage
+- 
