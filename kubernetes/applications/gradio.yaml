@@ -19,7 +19,7 @@ metadata:
 # 4. The specification for the Deployment's behavior
 spec:
   # Number of pods that we always want to be running
-  replicas: 2
+  replicas: 4
 
   # The "Selector" is how this Deployment finds and manages its Pods.
   # It tells the Deployment: "You are in charge of any Pod that has this exact tag."

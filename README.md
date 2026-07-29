@@ -93,4 +93,3 @@ Next Steps :
 
 # Important todos to be tackled later
 - Move the terraform state file to google cloud storage
-- 
