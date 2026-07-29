@@ -41,6 +41,8 @@ You should see something like this :
 gke-machine-learning-machine-learning-82e85027-128t   Ready    <none>   3h47m   v1.35.6-gke.1049000
 gke-machine-learning-machine-learning-82e85027-t93d   Ready    <none>   3h47m   v1.35.6-gke.1049000
 '''
+- Download the official NVIDIA DaemonSet for GPU drivers (run inside the kubernetes folder):
+  - curl -o nvidia-daemonset.yaml https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nvidia-driver-installer/cos/daemonset-preloaded-latest.yaml
 - Deploy the gradio app using kubernetes it will get the docker image, and create as much containers as specified by our gradio.yaml file.
   - kubectl apply -f gradio.yaml
 - To watch the pods start

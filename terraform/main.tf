@@ -123,7 +123,7 @@ resource "google_container_node_pool" "gradio_nodes" {
   name       = "gradio-machine-learning-node-pool"
   location   = "europe-west4-b"
   cluster    = google_container_cluster.primary_cluster.name
-  node_count = 4
+  node_count = 2
 
   # Define the machine types and set the gpu's
   node_config {
@@ -154,12 +154,12 @@ resource "google_container_node_pool" "triton_nodes" {
 
   # Define the machine types and set the gpu's
   node_config {
-    machine_type = "g2-standard-4"
+    machine_type = "n1-standard-4"
     disk_size_gb = 50
 
     # Add GPU to the node
     guest_accelerator {
-      type  = "nvidia-l4"
+      type  = "nvidia-tesla-t4"
       count = 1
     }
 
