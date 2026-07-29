@@ -95,3 +95,35 @@ Next Steps :
 
 # Important todos to be tackled later
 - Move the terraform state file to google cloud storage
+
+# Troubleshooting
+
+### Debugging Stuck Node Provisioning
+If `terraform apply` hangs while creating node pools (often caused by GPU stockouts or quota limits), you can use the `gcloud` CLI to check the status directly on Google Cloud:
+
+**1. Check if the cluster is stuck in a `RECONCILING` state:**
+```bash
+gcloud container clusters list
+```
+*Example Output (Notice the STATUS column):*
+```text
+NAME                      LOCATION        NUM_NODES  STATUS
+machine-learning-cluster  europe-west4-b  2          RECONCILING
+```
+
+**2. List all node pools to see which ones exist:**
+```bash
+gcloud container node-pools list --cluster machine-learning-cluster --location europe-west4-b
+```
+*Example Output:*
+```text
+NAME                               MACHINE_TYPE   DISK_SIZE_GB
+gradio-machine-learning-node-pool  e2-standard-4  50
+triton-machine-learning-node-pool  n1-standard-4  50
+```
+
+**3. Get detailed error messages for a specific stuck node pool:**
+By describing the specific node pool, you can often find a `statusMessage` at the bottom of the output explaining *why* it is stuck (e.g., "Insufficient regional quota").
+```bash
+gcloud container node-pools describe triton-machine-learning-node-pool --cluster machine-learning-cluster --location europe-west4-b
+```
