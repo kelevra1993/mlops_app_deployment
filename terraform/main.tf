@@ -37,7 +37,7 @@ resource "google_compute_subnetwork" "kubernetes_sub_network" {
 #    - Zonal cluster to save costs for learning
 resource "google_container_cluster" "primary_cluster" {
   name     = "machine-learning-cluster"
-  location = "europe-west1-c"
+  location = "europe-west1-d"
 
   # Attach it to the VPC and Subnet created above
   network    = google_compute_network.machine_learning_virtual_private_network.id
@@ -121,7 +121,7 @@ resource "google_project_iam_member" "node_service_account_bigquery" {
 # First we start with nodes that only have CPUs
 resource "google_container_node_pool" "gradio_nodes" {
   name       = "gradio-machine-learning-node-pool"
-  location   = "europe-west1-c"
+  location   = "europe-west1-d"
   cluster    = google_container_cluster.primary_cluster.name
   node_count = 2
 
@@ -152,7 +152,7 @@ resource "google_container_node_pool" "gradio_nodes" {
 # 6.b. Then the nodes that will a gpu since they must have a gpu
 resource "google_container_node_pool" "triton_nodes" {
   name       = "triton-machine-learning-node-pool"
-  location   = "europe-west1-c"
+  location   = "europe-west1-d"
   cluster    = google_container_cluster.primary_cluster.name
   node_count = 1
 
