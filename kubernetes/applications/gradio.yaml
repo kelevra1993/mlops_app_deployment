@@ -11,7 +11,7 @@ metadata:
   # The unique name for this Deployment object.
   name: gradio-deployment
   # Labels are key-value metadata tags used for organization, logging, and filtering.
-  # Here the key-value pair component-frontend are arbitrarily set and could be anything else.
+  # Here the key-value pair component-frontend/backend are arbitrarily set and could be anything else.
   labels:
     app: gradio
     component: frontend
