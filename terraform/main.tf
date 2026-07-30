@@ -149,9 +149,24 @@ resource "google_container_node_pool" "gradio_nodes" {
   }
 }
 
+resource "google_compute_reservation" "l4_reservation" {
+  name = "l4-gpu-reservation"
+  zone = "europe-west4-a"
+
+  specific_reservation {
+    count = 1
+    instance_properties {
+      machine_type = "g2-standard-4"
+      guest_accelerators {
+        accelerator_type  = "nvidia-l4"
+        accelerator_count = 1
+      }
+    }
+  }
+}
 # 6.b. Then the nodes that will a gpu since they must have a gpu
 resource "google_container_node_pool" "triton_nodes" {
-  name       = "triton-machine-learning-node-pool"
+  name       = "triton-reserved-node-pool"
   location   = "europe-west4-a"
   cluster    = google_container_cluster.primary_cluster.name
   node_count = 1
@@ -182,6 +197,12 @@ resource "google_container_node_pool" "triton_nodes" {
 
     # Free-text 'hashtags' stamped onto our VMs so our firewall rules can target them specifically later.
     tags = ["google-kubernetes-engine-node", "machine-learning-ops-cluster", "triton-node"]
+
+    reservation_affinity {
+      consume_reservation_type = "SPECIFIC_RESERVATION"
+      key                      = "compute.googleapis.com/reservation-name"
+      values                   = [google_compute_reservation.l4_reservation.name]
+    }
   }
 }
 
