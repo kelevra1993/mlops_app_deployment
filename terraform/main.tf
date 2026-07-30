@@ -29,7 +29,7 @@ resource "google_compute_network" "machine_learning_virtual_private_network" {
 resource "google_compute_subnetwork" "kubernetes_sub_network" {
   name          = "kubernetes-sub-network"
   ip_cidr_range = "10.0.0.0/16"
-  region        = "europe-west4"
+  region        = "europe-west3"
   network       = google_compute_network.machine_learning_virtual_private_network.id
 }
 
@@ -37,7 +37,7 @@ resource "google_compute_subnetwork" "kubernetes_sub_network" {
 #    - Zonal cluster to save costs for learning
 resource "google_container_cluster" "primary_cluster" {
   name     = "machine-learning-cluster"
-  location = "europe-west4-a"
+  location = "europe-west3-a"
 
   # Attach it to the VPC and Subnet created above
   network    = google_compute_network.machine_learning_virtual_private_network.id
@@ -121,7 +121,7 @@ resource "google_project_iam_member" "node_service_account_bigquery" {
 # First we start with nodes that only have CPUs
 resource "google_container_node_pool" "gradio_nodes" {
   name       = "gradio-machine-learning-node-pool"
-  location   = "europe-west4-a"
+  location   = "europe-west3-a"
   cluster    = google_container_cluster.primary_cluster.name
   node_count = 2
 
@@ -151,7 +151,7 @@ resource "google_container_node_pool" "gradio_nodes" {
 
 resource "google_compute_reservation" "l4_reservation" {
   name = "l4-gpu-reservation"
-  zone = "europe-west4-a"
+  zone = "europe-west3-a"
 
   specific_reservation {
     count = 1
@@ -167,7 +167,7 @@ resource "google_compute_reservation" "l4_reservation" {
 # 6.b. Then the nodes that will a gpu since they must have a gpu
 resource "google_container_node_pool" "triton_nodes" {
   name       = "triton-reserved-node-pool"
-  location   = "europe-west4-a"
+  location   = "europe-west3-a"
   cluster    = google_container_cluster.primary_cluster.name
   node_count = 1
 
@@ -222,8 +222,8 @@ resource "google_storage_bucket" "image_storage_bucket" {
 
 # 8. Create a BigQuery Dataset (The container for our tables)
 resource "google_bigquery_dataset" "prediction_dataset" {
-  dataset_id = "machine_learning_predictions_euw4"
-  location   = "europe-west4"
+  dataset_id = "machine_learning_predictions_euw3"
+  location   = "europe-west3"
 
   # Equivalent to force_destroy. Allows Terraform to delete this dataset
   # even if it still contains tables.
@@ -254,7 +254,7 @@ resource "google_bigquery_table" "prediction_history_table" {
 
 # 10. Create an Artifact Registry Repository for Docker Images
 resource "google_artifact_registry_repository" "docker_repository" {
-  location      = "europe-west4"
+  location      = "europe-west3"
   repository_id = "machine-learning-artifacts-registry"
   description   = "Docker repository for Gradio and Triton container images"
   format        = "DOCKER"
@@ -263,7 +263,7 @@ resource "google_artifact_registry_repository" "docker_repository" {
 # 11. Create a Cloud Router (Required by Cloud Network Address Translation [NAT])
 resource "google_compute_router" "network_address_translation_router" {
   name    = "machine-learning-network-address-translation-router"
-  region  = "europe-west4"
+  region  = "europe-west3"
   network = google_compute_network.machine_learning_virtual_private_network.id
 }
 
@@ -274,7 +274,7 @@ resource "google_compute_router" "network_address_translation_router" {
 resource "google_compute_router_nat" "nat_gateway" {
   name                               = "machine-learning-network-address-translation-gateway"
   router                             = google_compute_router.network_address_translation_router.name
-  region                             = "europe-west4"
+  region                             = "europe-west3"
   nat_ip_allocate_option             = "AUTO_ONLY"
   source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
 }
