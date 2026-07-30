@@ -162,12 +162,12 @@ resource "google_container_node_pool" "triton_nodes" {
 
   # Define the machine types and set the gpu's
   node_config {
-    machine_type = "n1-standard-4"
+    machine_type = "g2-standard-4"
     disk_size_gb = 50
 
     # Add GPU to the node
     guest_accelerator {
-      type  = "nvidia-tesla-t4"
+      type  = "nvidia-l4"
       count = 1
     }
 
@@ -201,7 +201,7 @@ resource "google_storage_bucket" "image_storage_bucket" {
 
 # 8. Create a BigQuery Dataset (The container for our tables)
 resource "google_bigquery_dataset" "prediction_dataset" {
-  dataset_id = "machine_learning_predictions"
+  dataset_id = "machine_learning_predictions_euw1"
   location   = "europe-west1"
 
   # Equivalent to force_destroy. Allows Terraform to delete this dataset
