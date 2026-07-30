@@ -152,6 +152,7 @@ resource "google_container_node_pool" "gradio_nodes" {
 resource "google_compute_reservation" "l4_reservation" {
   name = "l4-gpu-reservation"
   zone = "europe-west3-a"
+  specific_reservation_required = true
 
   specific_reservation {
     count = 1
