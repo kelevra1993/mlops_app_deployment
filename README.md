@@ -127,3 +127,9 @@ By describing the specific node pool, you can often find a `statusMessage` at th
 ```bash
 gcloud container node-pools describe triton-machine-learning-node-pool --cluster machine-learning-cluster --location europe-west4-b
 ```
+
+**4. Delete a stuck node pool to unblock Terraform:**
+If a node pool is hopelessly stuck (for example, due to a GPU stockout error in GCP) and it's preventing `terraform plan` or `terraform apply` from running because Terraform tries to "resume" it, you can forcefully delete it using `gcloud`. Once deleted from GCP, Terraform will cleanly recreate it without errors.
+```bash
+gcloud container node-pools delete triton-machine-learning-node-pool --cluster machine-learning-cluster --zone europe-west4-b --quiet
+```
