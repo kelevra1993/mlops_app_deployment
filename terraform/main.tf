@@ -152,7 +152,7 @@ resource "google_container_node_pool" "gradio_nodes" {
 # 6.b. Then the nodes that will a gpu since they must have a gpu
 resource "google_container_node_pool" "triton_nodes" {
   name       = "triton-machine-learning-node-pool"
-  location   = "europe-west1-b"
+  location   = "europe-west1-c"
   cluster    = google_container_cluster.primary_cluster.name
   node_count = 1
 
