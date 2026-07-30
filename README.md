@@ -170,6 +170,7 @@ gcloud container node-pools delete triton-machine-learning-node-pool --cluster m
 
 ## 7. Next Steps & Roadmap
 
+- [x] Verified Git Autonomy.
 - **Move the Terraform state file** to a Google Cloud Storage backend for shared state management.
 - Ensure environment variables identifying each machine/pod are injected properly.
 - Finalize Secrets Manager integration.
