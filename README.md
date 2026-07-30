@@ -174,3 +174,6 @@ gcloud container node-pools delete triton-machine-learning-node-pool --cluster m
 - Ensure environment variables identifying each machine/pod are injected properly.
 - Finalize Secrets Manager integration.
 - Ensure seamless VPC communication between all components.
+
+---
+*Note: This infrastructure setup is highly autonomous. Terraform may destroy and recreate resources (like Node Pools) automatically to bypass cloud capacity limits.*
