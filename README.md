@@ -25,7 +25,8 @@ Terraform Steps On Mac/Ubuntu:
 - Working with Terraform
   - terraform fmt : For formatting
   - terraform plan : For planning changes
-  - terraform apply : For applying changes
+  - terraform apply : For applying changes (asks for confirmation)
+  - terraform apply -auto-approve : For applying changes automatically without confirmation
 
 Kubernetes Steps On Mac :
 - Install GKE CLOUD AUTHENTICATION PLUGIN for Kubernetes
