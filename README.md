@@ -1,6 +1,6 @@
 # MLOps Application Deployment Pipeline
 
-Welcome to the MLOps Application Deployment repository! This project provisions a fully functional Machine Learning pipeline on Google Cloud Platform (GCP). It uses **Terraform** for infrastructure, **Google Kubernetes Engine (GKE)** for orchestration, a **Gradio** frontend for the user interface, and an **NVIDIA Triton Inference Server** backend (equipped with GPU acceleration) for high-performance model serving.
+This project provisions a Machine Learning pipeline on Google Cloud Platform (GCP) using Terraform, Google Kubernetes Engine (GKE), Gradio, and NVIDIA Triton Inference Server.
 
 ---
 
