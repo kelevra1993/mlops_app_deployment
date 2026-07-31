@@ -157,6 +157,12 @@ kubectl get pods -l app=gradio --watch
 kubectl get service gradio-service --watch
 ```
 
+**4. Access the Live Application:**
+Once the LoadBalancer is fully provisioned, the Gradio frontend is available to the public. 
+The application is currently live and accessible at: 
+**http://34.107.100.71:80**
+
+
 ---
 
 ## 5. Next Steps & Roadmap
