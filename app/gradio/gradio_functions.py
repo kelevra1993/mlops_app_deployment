@@ -1,6 +1,7 @@
 import cv2
 import os
 import sys
+import uuid
 
 # Ensure the root project directory is in the Python path for imports to work correctly
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
@@ -9,7 +10,8 @@ from app.triton_inference.triton_inference_functions import (
     get_images,
     perform_inference,
 )
-
+from app.bigquery.client import insert_inference_data, get_recent_inferences
+from app.gcs.client import upload_inferred_image
 
 def get_inference_data_images():
     """
@@ -29,13 +31,15 @@ def get_inference_data_images():
     return []
 
 
-def process_image(uploaded_image, selected_inference_image, client):
+def process_image(uploaded_image, selected_inference_image, additional_comment, client):
     """
     Processes the selected or uploaded image and returns inference results.
+    It also uploads the image to GCS and saves the record to BigQuery.
     
     Args:
         uploaded_image (str): Filepath to the uploaded image.
         selected_inference_image (str): The filename of the selected image from the dropdown.
+        additional_comment (str): The user's input from the new comment Textbox.
         client: Triton Inference Server client
         
     Returns:
@@ -66,6 +70,47 @@ def process_image(uploaded_image, selected_inference_image, client):
     if image_to_process is None:
         return image_name, 0.0, "Failed to load image", None
         
+    # 1. Run inference
     predicted_class, score = perform_inference(image_to_process, client)
     
+    # 2. Generate UUID for this inference run
+    inference_uuid = str(uuid.uuid4())
+    
+    # 3. Upload to Google Cloud Storage
+    gcs_blob_name = f"{inference_uuid}_{image_name}"
+    gcs_uri = upload_inferred_image(image_path, gcs_blob_name)
+    
+    # 4. Save to BigQuery with the required prefix
+    prefixed_comment = f"Called By Gradio : {additional_comment}" if additional_comment else "Called By Gradio : "
+    replica_name = os.getenv("REPLICA_NAME", "POD NOT IDENTIFIED")
+    
+    insert_inference_data(
+        uuid_str=inference_uuid,
+        predicted_class=predicted_class,
+        probability=score,
+        kubernetes_node=replica_name,
+        gcs_image_uri=gcs_uri,
+        additional_comment=prefixed_comment
+    )
+    
     return image_name, score, predicted_class, image_path
+
+def fetch_recent_inferences():
+    """
+    Fetches the 5 most recent inferences from BigQuery and formats them for the Gradio Dataframe.
+    """
+    rows = get_recent_inferences(limit=5)
+    
+    # Gradio's gr.Dataframe expects a list of lists (rows of columns)
+    formatted_rows = []
+    for r in rows:
+        formatted_rows.append([
+            r.get("uuid", ""),
+            r.get("predicted_class", ""),
+            r.get("probability", 0.0),
+            str(r.get("timestamp", "")),
+            r.get("kubernetes_node", ""),
+            r.get("gcs_image_uri", ""),
+            r.get("additional_comment", "")
+        ])
+    return formatted_rows
