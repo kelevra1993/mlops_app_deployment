@@ -168,3 +168,23 @@ kubectl get service gradio-service --watch
 
 ---
 *Note: This infrastructure setup is highly autonomous. Terraform may destroy and recreate resources (like Node Pools) automatically to bypass cloud capacity limits.*
+
+---
+
+## 6. Debugging History & Corrections
+
+During the initial deployment of the Kubernetes cluster, a few misconfigurations were successfully debugged and corrected:
+
+1. **Node Pool Name Mismatch (`kubernetes/applications/triton.yaml`)**:
+   - *Bug*: Triton pods were stuck in the `Pending` state.
+   - *Debugging*: We inspected the Terraform configuration and discovered the actual provisioned name for the GPU Node Pool was `triton-reserved-node-pool`. The `triton.yaml` file was incorrectly attempting to schedule pods onto a non-existent `triton-machine-learning-node-pool`.
+   - *Fix*: Updated the `nodeSelector` in `triton.yaml` to exactly match the Terraform node pool name.
+
+2. **Gradio Node Selector Absent (`kubernetes/applications/gradio.yaml`)**:
+   - *Bug*: Gradio pods could randomly be scheduled onto expensive L4 GPU nodes since they lacked any `nodeSelector`.
+   - *Fix*: Added a `nodeSelector` specifically targeting the standard compute `gradio-machine-learning-node-pool` to strictly isolate workload costs.
+
+3. **GCS Bucket IAM Permissions (`terraform/main.tf`)**:
+   - *Bug*: Once Triton was scheduled, the pod continuously crashed with `Permission 'storage.buckets.get' denied`.
+   - *Debugging*: We inspected the Triton Pod logs using `kubectl logs` and identified the container could not fetch the model repository bucket metadata. The Service Account bound to the Kubernetes node pool was originally only granted `roles/storage.objectAdmin`, which allows managing objects inside buckets, but does NOT grant permission to read the bucket's overarching metadata.
+   - *Fix*: Upgraded the Terraform IAM binding for the node service account to `roles/storage.admin`, granting full access to GCS. Re-applied Terraform, waited for IAM propagation, and restarted the pod.
