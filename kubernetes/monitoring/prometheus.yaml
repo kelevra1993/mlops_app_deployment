@@ -1,0 +1,118 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  # Using the default namespace for simplicity, though in large clusters
+  # monitoring tools often get their own 'monitoring' namespace.
+data:
+  prometheus.yml: |
+    global:
+      # How often Prometheus will pull (scrape) metrics from all targets
+      scrape_interval: 15s
+
+    scrape_configs:
+      # Job 1: Prometheus monitoring its own health
+      # We tell it to look in the mirror at its own port 9090
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+
+      # Job 2: Scraping the Triton Inference Server for GPU and model metrics
+      # We use the internal K8s DNS name (triton-service) and the metrics port (8002)
+      - job_name: 'triton'
+        static_configs:
+          - targets: ['triton-service:8002']
+
+---
+# Persistent Volume Claim (PVC)
+# This acts as a request to Google Cloud (GCP) to provide a physical hard drive.
+# We need this so that Prometheus has a permanent place to store its time-series database.
+# If the Prometheus Pod dies, this disk will detach and re-attach to the new Pod, saving our data.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-persistent-volume-claim
+spec:
+  accessModes:
+    # ReadWriteOnce means the volume can be mounted as read-write by a single node at a time.
+    - ReadWriteOnce
+  resources:
+    requests:
+      # We are requesting 10 Gigabytes of storage.
+      storage: 10Gi
+
+---
+# Prometheus Deployment
+# This acts as the manager that ensures our Prometheus Pod is always running.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-deployment
+  labels:
+    app: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      # Schedule this pod ONLY on the CPU node pool so we don't waste GPU resources!
+      nodeSelector:
+        cloud.google.com/gke-nodepool: gradio-machine-learning-node-pool
+      
+      containers:
+        - name: prometheus-container
+          # Use the official Prometheus image (it's best practice to use a specific version tag)
+          image: prom/prometheus:v2.45.0
+          
+          ports:
+            # The port that Prometheus natively listens on
+            - containerPort: 9090
+          
+          # This is where we plug our Volumes into the container's file system
+          volumeMounts:
+            # 1. Mount the configuration file
+            - name: config-volume
+              # Prometheus expects its config file to be located in this directory
+              mountPath: /etc/prometheus
+            
+            # 2. Mount the physical hard drive for the database
+            - name: storage-volume
+              # Prometheus expects to save its time-series data to this specific folder
+              mountPath: /prometheus
+      
+      # This defines the actual Volumes available to the Pod (which we mounted above)
+      volumes:
+        # Link to our ConfigMap
+        - name: config-volume
+          configMap:
+            name: prometheus-config
+        
+        # Link to our Persistent Volume Claim
+        - name: storage-volume
+          persistentVolumeClaim:
+            claimName: prometheus-persistent-volume-claim
+
+---
+# Prometheus Service
+# This exposes Prometheus internally to the cluster so Grafana can reach it.
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-service
+spec:
+  # We use ClusterIP (internal only), NOT LoadBalancer (public internet).
+  # Exposing Prometheus to the public internet is a huge security risk!
+  type: ClusterIP
+  selector:
+    app: prometheus
+  ports:
+    - protocol: TCP
+      # The port the Service exposes inside the cluster
+      port: 9090
+      # The port the container is actually listening on
+      targetPort: 9090
