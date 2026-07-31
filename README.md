@@ -166,11 +166,23 @@ The application is currently live and accessible at:
 ---
 
 ## 5. Next Steps & Roadmap
-
-- **Move the Terraform state file** to a Google Cloud Storage backend for shared state management.
-- Ensure environment variables identifying each machine/pod are injected properly.
-- Finalize Secrets Manager integration.
-- Ensure seamless VPC communication between all components.
+ 
+ - Ensure environment variables identifying each machine/pod are injected properly.
+ - Finalize Secrets Manager integration.
+ - Ensure seamless VPC communication between all components.
+ 
+ ---
+ 
+ ## 6. Terraform State Management
+ 
+ We have migrated the local Terraform state to a Google Cloud Storage (GCS) backend for secure, shared state management. This ensures that the state is not lost and allows for collaboration without state conflicts.
+ 
+ **Bucket Name**: `gs://ml-ops-infrastructure-2026`
+ 
+ **Migration Command Used**:
+ ```bash
+ terraform init -migrate-state
+ ```
 
 ---
 *Note: This infrastructure setup is highly autonomous. Terraform may destroy and recreate resources (like Node Pools) automatically to bypass cloud capacity limits.*

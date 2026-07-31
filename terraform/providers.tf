@@ -1,4 +1,8 @@
 terraform {
+  backend "gcs" {
+    bucket = "ml-ops-infrastructure-2026"
+    prefix = "terraform/state"
+  }
   required_providers {
     google = {
       source  = "hashicorp/google"
