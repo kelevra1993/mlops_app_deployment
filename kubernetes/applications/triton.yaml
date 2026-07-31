@@ -40,7 +40,7 @@ spec:
     spec:
       # Forces the Pod to ONLY spawn on the nodes in our Triton Node Pool
       nodeSelector:
-        cloud.google.com/gke-nodepool: triton-machine-learning-node-pool
+        cloud.google.com/gke-nodepool: triton-reserved-node-pool
 
       containers:
       # A list of containers to run inside this Pod (usually just one per Pod).

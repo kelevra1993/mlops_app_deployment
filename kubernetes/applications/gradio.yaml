@@ -38,6 +38,8 @@ spec:
 
     # 6. The internal configuration of the Pod itself
     spec:
+      nodeSelector:
+        cloud.google.com/gke-nodepool: gradio-machine-learning-node-pool
       containers:
       # A list of containers to run inside this Pod (usually just one per Pod).
       - name: gradio-container
