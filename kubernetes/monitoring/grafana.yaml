@@ -1,0 +1,142 @@
+# 1. Specifies which Kubernetes API group parses this file.
+# 'v1' => Core API group for basic resources like ConfigMaps, Pods, and Services.
+apiVersion: v1
+
+# 2. Defines the exact type of object you want to create.
+# A 'ConfigMap' : used here to automatically inject datasource configurations into Grafana.
+kind: ConfigMap
+
+# 3. Contains metadata to name and tag this object within the cluster.
+metadata:
+  name: grafana-datasource-config
+
+# 4. The actual data being injected into the container.
+data:
+  datasources.yml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        # The internal K8s DNS route telling Grafana how to reach the Prometheus database.
+        url: http://prometheus-service:9090
+        isDefault: true
+
+# --- Separates the ConfigMap block above from this PersistentVolumeClaim block below ---
+---
+# 1. Core API group for resources like PersistentVolumeClaims
+apiVersion: v1
+
+# 2. We are creating a PersistentVolumeClaim object
+# A 'PersistentVolumeClaim' : ensures dashboards and users survive pod restarts by storing them externally.
+kind: PersistentVolumeClaim
+
+# 3. Metadata for the PVC itself
+metadata:
+  name: grafana-pvc
+
+# 4. The storage specification
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+
+# --- Separates the PersistentVolumeClaim block above from this Deployment block below ---
+---
+# 1. Specifies which Kubernetes API group parses this file.
+apiVersion: apps/v1
+
+# 2. Defines the exact type of object you want to create.
+kind: Deployment
+
+# 3. Contains metadata to name and tag this Deployment object within the cluster.
+metadata:
+  name: grafana-deployment
+  labels:
+    app: grafana
+
+# 4. The specification for the Deployment's behavior
+spec:
+  replicas: 1
+
+  # The "Selector" is how this Deployment finds and manages its Pods.
+  selector:
+    matchLabels:
+      app: grafana
+
+  # 5. The blueprint used to create every individual Pod.
+  template:
+    metadata:
+      labels:
+        app: grafana
+
+    # 6. The internal configuration of the Pod itself
+    spec:
+      # Schedules this pod exclusively on the CPU node pool
+      nodeSelector:
+        cloud.google.com/gke-nodepool: gradio-machine-learning-node-pool
+      
+      # Modifies the container's security privileges so it can write to the root-owned physical volume.
+      securityContext:
+        # Changes the group ownership of the volume to ID 472 (the grafana user)
+        fsGroup: 472
+        supplementalGroups:
+          - 0
+      
+      # A list of containers to run inside this Pod
+      containers:
+        - name: grafana-container
+          image: grafana/grafana:13.0.4
+          
+          # Opens port 3000 on the container for incoming web traffic
+          ports:
+            - containerPort: 3000
+          
+          # 7. Maps the external volumes defined below into the container's file system
+          volumeMounts:
+            - name: grafana-datasources
+              mountPath: /etc/grafana/provisioning/datasources
+              
+            - name: grafana-storage
+              mountPath: /var/lib/grafana
+              
+      # 8. Defines the external storage resources this Pod has access to
+      volumes:
+        - name: grafana-datasources
+          configMap:
+            name: grafana-datasource-config
+        - name: grafana-storage
+          persistentVolumeClaim:
+            claimName: grafana-pvc
+
+# --- Separates the Deployment block above from this Service block below ---
+---
+# 1. Core API group for networking resources
+apiVersion: v1
+
+# 2. We are creating a Service object
+kind: Service
+
+# 3. Metadata for the Service itself
+metadata:
+  name: grafana-service
+
+# 4. The Service specification
+spec:
+  # Instructs Google Cloud to provision an external, public-facing IP address for the UI.
+  type: LoadBalancer
+  
+  # 5. The Selector
+  # The Service will route internet traffic to any Pods with this exact label.
+  selector:
+    app: grafana
+  
+  # 6. Port mappings
+  ports:
+    - protocol: TCP
+      # 'port': The standard port exposed to the outside world (Port 80 for HTTP)
+      port: 80
+      # 'targetPort': The port your actual Grafana application is running on inside the container
+      targetPort: 3000

@@ -1,118 +1,151 @@
+# 1. Specifies which Kubernetes API group parses this file.
+# 'v1' => Core API group for basic resources like ConfigMaps, Pods, and Services.
 apiVersion: v1
+
+# 2. Defines the exact type of object you want to create.
+# A 'ConfigMap' : stores non-confidential data in key-value pairs to decouple environment-specific configuration from your container images.
 kind: ConfigMap
+
+# 3. Contains metadata to name and tag this object within the cluster.
 metadata:
   name: prometheus-config
-  # Using the default namespace for simplicity, though in large clusters
-  # monitoring tools often get their own 'monitoring' namespace.
+
+# 4. The actual data being injected into the container.
 data:
+  # The configuration file that Prometheus expects to find
   prometheus.yml: |
     global:
-      # How often Prometheus will pull (scrape) metrics from all targets
-      scrape_interval: 15s
+      # How often Prometheus reaches out to pull metrics from the listed targets
+      scrape_interval: 5s
 
+    # The targets that Prometheus is responsible for monitoring
     scrape_configs:
-      # Job 1: Prometheus monitoring its own health
-      # We tell it to look in the mirror at its own port 9090
       - job_name: 'prometheus'
         static_configs:
           - targets: ['localhost:9090']
 
-      # Job 2: Scraping the Triton Inference Server for GPU and model metrics
-      # We use the internal K8s DNS name (triton-service) and the metrics port (8002)
       - job_name: 'triton'
         static_configs:
           - targets: ['triton-service:8002']
 
+# --- Separates the ConfigMap block above from this PersistentVolumeClaim block below ---
 ---
-# Persistent Volume Claim (PVC)
-# This acts as a request to Google Cloud (GCP) to provide a physical hard drive.
-# We need this so that Prometheus has a permanent place to store its time-series database.
-# If the Prometheus Pod dies, this disk will detach and re-attach to the new Pod, saving our data.
+# 1. Core API group for resources like PersistentVolumeClaims
 apiVersion: v1
+
+# 2. We are creating a PersistentVolumeClaim object
+# A 'PersistentVolumeClaim' : a request for storage by a user, preventing data loss when a pod dies.
 kind: PersistentVolumeClaim
+
+# 3. Metadata for the PVC itself
 metadata:
   name: prometheus-persistent-volume-claim
+
+# 4. The storage specification
 spec:
+  # 'ReadWriteOnce' means the volume can be mounted as read-write by a single node.
   accessModes:
-    # ReadWriteOnce means the volume can be mounted as read-write by a single node at a time.
     - ReadWriteOnce
+  # The amount of physical storage we are requesting from Google Cloud
   resources:
     requests:
-      # We are requesting 10 Gigabytes of storage.
       storage: 10Gi
 
+# --- Separates the PersistentVolumeClaim block above from this Deployment block below ---
 ---
-# Prometheus Deployment
-# This acts as the manager that ensures our Prometheus Pod is always running.
+# 1. Specifies which Kubernetes API group parses this file.
 apiVersion: apps/v1
+
+# 2. Defines the exact type of object you want to create.
+# A 'Deployment' : manages identical Pods, handles rolling updates, and automatically replaces failed Pods.
 kind: Deployment
+
+# 3. Contains metadata to name and tag this Deployment object within the cluster.
 metadata:
   name: prometheus-deployment
   labels:
     app: prometheus
+
+# 4. The specification for the Deployment's behavior
 spec:
+  # Number of pods that we always want to be running
   replicas: 1
+
+  # The "Selector" is how this Deployment finds and manages its Pods.
   selector:
     matchLabels:
       app: prometheus
+
+  # 5. The blueprint used to create every individual Pod.
   template:
     metadata:
+      # Labels stamped onto every Pod created by this Deployment.
       labels:
         app: prometheus
+
+    # 6. The internal configuration of the Pod itself
     spec:
-      # Schedule this pod ONLY on the CPU node pool so we don't waste GPU resources!
+      # Schedules this pod exclusively on the CPU node pool
       nodeSelector:
         cloud.google.com/gke-nodepool: gradio-machine-learning-node-pool
       
+      # A list of containers to run inside this Pod
       containers:
         - name: prometheus-container
-          # Use the official Prometheus image (it's best practice to use a specific version tag)
+          # The exact Docker image to pull from Docker Hub
           image: prom/prometheus:v2.45.0
           
+          # Opens port 9090 on the container for incoming connections
           ports:
-            # The port that Prometheus natively listens on
             - containerPort: 9090
           
-          # This is where we plug our Volumes into the container's file system
+          # 7. Maps the external volumes defined below into the container's file system
           volumeMounts:
-            # 1. Mount the configuration file
+            # Mount the ConfigMap into the folder where Prometheus looks for its config
             - name: config-volume
-              # Prometheus expects its config file to be located in this directory
               mountPath: /etc/prometheus
             
-            # 2. Mount the physical hard drive for the database
+            # Mount the Persistent Volume into the folder where Prometheus saves its database
             - name: storage-volume
-              # Prometheus expects to save its time-series data to this specific folder
               mountPath: /prometheus
       
-      # This defines the actual Volumes available to the Pod (which we mounted above)
+      # 8. Defines the external storage resources this Pod has access to
       volumes:
-        # Link to our ConfigMap
         - name: config-volume
           configMap:
             name: prometheus-config
         
-        # Link to our Persistent Volume Claim
         - name: storage-volume
           persistentVolumeClaim:
             claimName: prometheus-persistent-volume-claim
 
+# --- Separates the Deployment block above from this Service block below ---
 ---
-# Prometheus Service
-# This exposes Prometheus internally to the cluster so Grafana can reach it.
+# 1. Core API group for networking resources
 apiVersion: v1
+
+# 2. We are creating a Service object
+# A 'Service' : provides a stable IP address and DNS name for accessing pods.
 kind: Service
+
+# 3. Metadata for the Service itself
 metadata:
   name: prometheus-service
+
+# 4. The Service specification
 spec:
-  # We use ClusterIP (internal only), NOT LoadBalancer (public internet).
-  # Exposing Prometheus to the public internet is a huge security risk!
+  # Instructs Kubernetes to assign a stable internal IP address (not reachable from the internet)
   type: ClusterIP
+  
+  # 5. The Selector
+  # The Service will route traffic to any Pods with this exact label
   selector:
     app: prometheus
+  
+  # 6. Port mappings
   ports:
     - protocol: TCP
-      # The port the Service exposes inside the cluster
+      # The stable internal port the Service exposes to other apps in the cluster
       port: 9090
-      # The port the container is actually listening on
+      # The port the Prometheus application is actually running on inside the container
       targetPort: 9090
