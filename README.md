@@ -194,3 +194,8 @@ During the initial deployment of the Kubernetes cluster, a few misconfigurations
    - *Bug*: Once Triton was scheduled, the pod continuously crashed with `Permission 'storage.buckets.get' denied`.
    - *Debugging*: We inspected the Triton Pod logs using `kubectl logs` and identified the container could not fetch the model repository bucket metadata. The Service Account bound to the Kubernetes node pool was originally only granted `roles/storage.objectAdmin`, which allows managing objects inside buckets, but does NOT grant permission to read the bucket's overarching metadata.
    - *Fix*: Upgraded the Terraform IAM binding for the node service account to `roles/storage.admin`, granting full access to GCS. Re-applied Terraform, waited for IAM propagation, and restarted the pod.
+
+4. **Kubernetes API `i/o timeout` (Local Machine Sync)**:
+   - *Bug*: When running `kubectl apply`, the terminal threw an `i/o timeout` connecting to the Kubernetes control plane IP.
+   - *Debugging*: We realized the infrastructure was spun up on a different machine (or CI/CD runner). Running `terraform plan` locally showed `24 to add`, meaning the local Terraform state was empty and unaware of the active cluster.
+   - *Fix*: We determined that running `terraform apply` locally would mistakenly attempt to recreate the infrastructure. Instead, we simply synced the local machine to the existing cluster by fetching the credentials via `gcloud container clusters get-credentials <CLUSTER_NAME> --region <REGION> --project <PROJECT_ID>`.
