@@ -31,5 +31,5 @@ EXPOSE 7860
 ENV GRADIO_SERVER_NAME="0.0.0.0"
 ENV PYTHONPATH="/app"
 
-# Command to run the application
-CMD ["/app/.venv/bin/python", "gradio/gradio_app.py"]
+# Command to run the application dynamically based on the APP_TYPE env var
+CMD ["/bin/bash", "-c", "if [ \"$APP_TYPE\" = \"api\" ]; then /app/.venv/bin/uvicorn api.main:app --host 0.0.0.0 --port 8000; else /app/.venv/bin/python gradio/gradio_app.py; fi"]

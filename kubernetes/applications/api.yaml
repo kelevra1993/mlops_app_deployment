@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-deployment
+  labels:
+    app: api
+    component: backend
+spec:
+  # The API will only have 1 replica as requested
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+        component: backend
+    spec:
+      nodeSelector:
+        cloud.google.com/gke-nodepool: gradio-machine-learning-node-pool
+      containers:
+      - name: api-container
+        # Shared image with Gradio, but we pass APP_TYPE="api" to start FastAPI
+        image: europe-west3-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry/gradio-app:v4
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: APP_TYPE
+          value: "api"
+        - name: TRITON_SERVER_URL
+          value: "triton-service:8001"
+        - name: REPLICA_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-service
+  labels:
+    app: api
+    component: backend
+spec:
+  # Expose the API to the outside world
+  type: LoadBalancer
+  selector:
+    app: api
+  ports:
+  - port: 80
+    targetPort: 8000
