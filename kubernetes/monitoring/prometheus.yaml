@@ -85,9 +85,16 @@ spec:
 
     # 6. The internal configuration of the Pod itself
     spec:
-      # Schedules this pod exclusively on the CPU node pool
+      # Schedule onto the CPU node pool to reserve GPU instances for inference workloads.
       nodeSelector:
         cloud.google.com/gke-nodepool: gradio-machine-learning-node-pool
+      
+      # Grant Prometheus permissions to write to its PVC.
+      # The prometheus image runs as user 'nobody' (UID 65534).
+      securityContext:
+        fsGroup: 65534
+        supplementalGroups:
+          - 0
       
       # A list of containers to run inside this Pod
       containers:
