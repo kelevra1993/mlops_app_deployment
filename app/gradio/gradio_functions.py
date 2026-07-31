@@ -29,13 +29,14 @@ def get_inference_data_images():
     return []
 
 
-def process_image(uploaded_image, selected_inference_image):
+def process_image(uploaded_image, selected_inference_image, client):
     """
     Processes the selected or uploaded image and returns inference results.
     
     Args:
         uploaded_image (str): Filepath to the uploaded image.
         selected_inference_image (str): The filename of the selected image from the dropdown.
+        client: Triton Inference Server client
         
     Returns:
         tuple: (image_name, score, predicted_class, image_path)
@@ -65,6 +66,6 @@ def process_image(uploaded_image, selected_inference_image):
     if image_to_process is None:
         return image_name, 0.0, "Failed to load image", None
         
-    predicted_class, score = perform_inference(image_to_process)
+    predicted_class, score = perform_inference(image_to_process, client)
     
     return image_name, score, predicted_class, image_path

@@ -124,12 +124,13 @@ def get_images(path, basename=False, sort=False, mix=False, coherence=False):
     return images
 
 
-def perform_inference(image):
+def perform_inference(image, client):
     """
     Performs neural network inference on an input image.
 
     Args:
         image (numpy.ndarray): The input image loaded via OpenCV (BGR format).
+        client: The Triton Inference Server client
 
     Returns:
         tuple: A tuple containing the predicted class (str) and the prediction score (float).
@@ -139,13 +140,6 @@ def perform_inference(image):
 
     input_tensor = 'Input-Producer/Placeholders/Images/Placeholder_1:0'
     output_tensor = 'Outputs/Softmax:0'
-
-    try:
-        # Initialize Triton Inference Server client
-        client = get_inference_server_client(triton_server_url="localhost:8001")
-    except Exception as e:
-        print(f"Error connecting to Triton Server: {e}")
-        return "Error", 0.0
 
     # Preprocess the image to match the neural network input shape (300x300)
     preprocessed_image = preprocess(image, height=300, width=300, keep_ratio=True, center=False)
