@@ -220,3 +220,4 @@ Refactoring of the whole repository :
   - google_cloud_utilities
     - merging gcs and bigquery
 - Inference data to be renamed to data.
+- move run_inference.py to scripts since it is just a debugging function and properly document it.
