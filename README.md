@@ -211,3 +211,12 @@ During the initial deployment of the Kubernetes cluster, a few misconfigurations
    - *Bug*: When running `kubectl apply`, the terminal threw an `i/o timeout` connecting to the Kubernetes control plane IP.
    - *Debugging*: We realized the infrastructure was spun up on a different machine (or CI/CD runner). Running `terraform plan` locally showed `24 to add`, meaning the local Terraform state was empty and unaware of the active cluster.
    - *Fix*: We determined that running `terraform apply` locally would mistakenly attempt to recreate the infrastructure. Instead, we simply synced the local machine to the existing cluster by fetching the credentials via `gcloud container clusters get-credentials <CLUSTER_NAME> --region <REGION> --project <PROJECT_ID>`.
+
+Next things that will need to be implemented :
+
+Refactoring of the whole repository :
+- Utilities folder will contain different sorts of utility functions separated clearly
+  - os_utilities
+  - google_cloud_utilities
+    - merging gcs and bigquery
+- Inference data to be renamed to data.
