@@ -1,6 +1,7 @@
 import os
 import cv2
 import numpy as np
+from typing import List, Tuple
 
 from random import shuffle
 from os.path import join, dirname, basename
@@ -8,19 +9,21 @@ from os.path import join, dirname, basename
 import tritonclient.grpc as nvclient
 
 
-def preprocess(image, height, width, keep_ratio=False, center=False):
-    '''
-    todo update the docstrings and the type hinting and the returns
-    :param image: a numpy array of an image in BLUE, GREEN, RED opened by OpenCV
-    :param height: desired output height
-    :param width: desired output width
-    :param keep_ratio: boolean that decides whether or not we keep the aspect ratio of an image
-                    by default keep_ratio is False.
-                    In the case where we decide to keep the aspect ratio, black bars will either be appended
-                    on the right hand side of the images or on the bottom of the image to fit our desired height and width
-    :param center: boolean that decides if image is centered while applying keep_ratio
-    :return: processed_image: numpy array of desired height and width
-    '''
+def preprocess(image: np.ndarray, height: int, width: int, keep_ratio: bool = False, center: bool = False) -> np.ndarray:
+    """
+    Args:
+        image (np.ndarray): a numpy array of an image in BLUE, GREEN, RED opened by OpenCV
+        height (int): desired output height
+        width (int): desired output width
+        keep_ratio (bool): boolean that decides whether or not we keep the aspect ratio of an image
+                        by default keep_ratio is False.
+                        In the case where we decide to keep the aspect ratio, black bars will either be appended
+                        on the right hand side of the images or on the bottom of the image to fit our desired height and width
+        center (bool): boolean that decides if image is centered while applying keep_ratio
+
+    Returns:
+        np.ndarray: processed_image numpy array of desired height and width
+    """
 
     processed_image = None
 
@@ -61,28 +64,37 @@ def preprocess(image, height, width, keep_ratio=False, center=False):
     return processed_image
 
 
-def get_inference_server_client(triton_server_url):
+def get_inference_server_client(triton_server_url: str) -> nvclient.InferenceServerClient:
     """
-    todo add type hinting
     Function that gets inference server client url.
     In our case when we are inferring locally we binded triton inference server port 8001 to our own port 8001
     you can find that information in the docker compose up file therefore
     triton_server_url is  "localhost:8001" when running inference locally
+
+    Args:
+        triton_server_url (str): The URL of the Triton inference server.
+
+    Returns:
+        nvclient.InferenceServerClient: The inference server client object.
     """
     return nvclient.InferenceServerClient(triton_server_url, ssl=False)
 
 
-def run_neural_network_inference(data,
-                                 client,
-                                 input_tensor,
-                                 output_tensor):
+def run_neural_network_inference(data: np.ndarray,
+                                 client: nvclient.InferenceServerClient,
+                                 input_tensor: str,
+                                 output_tensor: str) -> np.ndarray:
     """
-    todo update the docstrings and the type hinting and the returns
     Function that runs neural network inference
-    :param data: input image
-    :param client: triton inference server client
-    :param input_tensor: input tensor of the neural network
-    :param output_tensor: output tensor of the neural network
+
+    Args:
+        data (np.ndarray): input image
+        client (nvclient.InferenceServerClient): triton inference server client
+        input_tensor (str): input tensor of the neural network
+        output_tensor (str): output tensor of the neural network
+
+    Returns:
+        np.ndarray: The output of the neural network inference
     """
 
     inputs = [nvclient.InferInput(input_tensor, data.shape, "FP32")]
@@ -95,15 +107,19 @@ def run_neural_network_inference(data,
     return results.as_numpy(output_tensor)
 
 
-def get_images(path, basename=False, sort=False, mix=False, coherence=False):
+def get_images(path: str, basename: bool = False, sort: bool = False, mix: bool = False, coherence: bool = False) -> List[str]:
     """
-    todo update the docstrings and the type hinting and the returns
     Function that returns images from a given directory path
-    :param basename: boolean if we only want to get simple image file name instead of full image file name
-    :param sort: boolean to sort image files that have been found
-    :param mix: boolean that allows to shuffle image files that have been found
-    :param coherence: boolean in order to check that image file is not a 0 octet image file
-    :return image: list of image files
+
+    Args:
+        path (str): The directory path containing the images
+        basename (bool): boolean if we only want to get simple image file name instead of full image file name
+        sort (bool): boolean to sort image files that have been found
+        mix (bool): boolean that allows to shuffle image files that have been found
+        coherence (bool): boolean in order to check that image file is not a 0 octet image file
+
+    Returns:
+        List[str]: list of image files
     """
     if coherence:
         if basename:
@@ -128,17 +144,16 @@ def get_images(path, basename=False, sort=False, mix=False, coherence=False):
     return images
 
 
-def perform_inference(image, client):
+def perform_inference(image: np.ndarray, client: nvclient.InferenceServerClient) -> Tuple[str, float]:
     """
-    todo update the docstrings and the type hinting and the returns
     Performs neural network inference on an input image.
 
     Args:
-        image (numpy.ndarray): The input image loaded via OpenCV (BGR format).
-        client: The Triton Inference Server client
+        image (np.ndarray): The input image loaded via OpenCV (BGR format).
+        client (nvclient.InferenceServerClient): The Triton Inference Server client.
 
     Returns:
-        tuple: A tuple containing the predicted class (str) and the prediction score (float).
+        Tuple[str, float]: A tuple containing the predicted class (str) and the prediction score (float).
     """
     if image is None:
         return "Unknown", 0.0
