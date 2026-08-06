@@ -10,6 +10,7 @@ import tritonclient.grpc as nvclient
 
 def preprocess(image, height, width, keep_ratio=False, center=False):
     '''
+    todo update the docstrings and the type hinting and the returns
     :param image: a numpy array of an image in BLUE, GREEN, RED opened by OpenCV
     :param height: desired output height
     :param width: desired output width
@@ -62,6 +63,7 @@ def preprocess(image, height, width, keep_ratio=False, center=False):
 
 def get_inference_server_client(triton_server_url):
     """
+    todo add type hinting
     Function that gets inference server client url.
     In our case when we are inferring locally we binded triton inference server port 8001 to our own port 8001
     you can find that information in the docker compose up file therefore
@@ -75,6 +77,7 @@ def run_neural_network_inference(data,
                                  input_tensor,
                                  output_tensor):
     """
+    todo update the docstrings and the type hinting and the returns
     Function that runs neural network inference
     :param data: input image
     :param client: triton inference server client
@@ -94,6 +97,7 @@ def run_neural_network_inference(data,
 
 def get_images(path, basename=False, sort=False, mix=False, coherence=False):
     """
+    todo update the docstrings and the type hinting and the returns
     Function that returns images from a given directory path
     :param basename: boolean if we only want to get simple image file name instead of full image file name
     :param sort: boolean to sort image files that have been found
@@ -126,6 +130,7 @@ def get_images(path, basename=False, sort=False, mix=False, coherence=False):
 
 def perform_inference(image, client):
     """
+    todo update the docstrings and the type hinting and the returns
     Performs neural network inference on an input image.
 
     Args:
@@ -143,7 +148,7 @@ def perform_inference(image, client):
 
     # Preprocess the image to match the neural network input shape (300x300)
     preprocessed_image = preprocess(image, height=300, width=300, keep_ratio=True, center=False)
-    
+
     # Expand dimensions to add the batch dimension expected by the model
     preprocessed_image = np.expand_dims(preprocessed_image, 0)
 
