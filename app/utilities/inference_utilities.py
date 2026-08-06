@@ -9,8 +9,12 @@ from os.path import join, dirname, basename
 import tritonclient.grpc as nvclient
 
 
-def preprocess(image: np.ndarray, height: int, width: int, keep_ratio: bool = False, center: bool = False) -> np.ndarray:
+def preprocess(image: np.ndarray, height: int, width: int, keep_ratio: bool = False,
+               center: bool = False) -> np.ndarray:
     """
+    Preprocesses an input image via OpenCV to match the input shape expected by the Triton inference model. 
+    It resizes the image to the specified dimensions (e.g., 300x300) and optionally applies padding to maintain 
+    the aspect ratio, ensuring the classifier can correctly evaluate image features without distortion.
     Args:
         image (np.ndarray): a numpy array of an image in BLUE, GREEN, RED opened by OpenCV
         height (int): desired output height
@@ -66,7 +70,8 @@ def preprocess(image: np.ndarray, height: int, width: int, keep_ratio: bool = Fa
 
 def get_inference_server_client(triton_server_url: str) -> nvclient.InferenceServerClient:
     """
-    Function that gets inference server client url.
+    Initializes and returns a gRPC client connected to the Triton Inference Server.
+    This client is used by the FastAPI and Gradio backends to stream image data to the neural network deployed on GKE.
     In our case when we are inferring locally we binded triton inference server port 8001 to our own port 8001
     you can find that information in the docker compose up file therefore
     triton_server_url is  "localhost:8001" when running inference locally
@@ -85,7 +90,9 @@ def run_neural_network_inference(data: np.ndarray,
                                  input_tensor: str,
                                  output_tensor: str) -> np.ndarray:
     """
-    Function that runs neural network inference
+    Executes the inference request against the Triton backend model. 
+    It formats the preprocessed image into the expected gRPC tensor format, sends it to the server, 
+    and parses the raw output array returned by the neural network.
 
     Args:
         data (np.ndarray): input image
@@ -107,9 +114,12 @@ def run_neural_network_inference(data: np.ndarray,
     return results.as_numpy(output_tensor)
 
 
-def get_images(path: str, basename: bool = False, sort: bool = False, mix: bool = False, coherence: bool = False) -> List[str]:
+def get_images(path: str, basename: bool = False, sort: bool = False,
+               mix: bool = False, coherence: bool = False) -> List[str]:
     """
-    Function that returns images from a given directory path
+    Fetches a list of sample or test images from a local directory path.
+    This is primarily used for debugging the pipeline, batch testing the classifier, 
+    or generating mock dataset inputs before uploading the results to BigQuery/GCS.
 
     Args:
         path (str): The directory path containing the images
@@ -146,7 +156,9 @@ def get_images(path: str, basename: bool = False, sort: bool = False, mix: bool 
 
 def perform_inference(image: np.ndarray, client: nvclient.InferenceServerClient) -> Tuple[str, float]:
     """
-    Performs neural network inference on an input image.
+    A high-level wrapper used by the API and Gradio endpoints to process a single image. 
+    It ties together the OpenCV image preprocessing steps and the Triton gRPC execution, 
+    ultimately mapping the model's raw probability scores into human-readable classification labels ('squares' or 'circles').
 
     Args:
         image (np.ndarray): The input image loaded via OpenCV (BGR format).
