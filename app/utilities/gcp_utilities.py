@@ -61,6 +61,8 @@ def insert_inference_data_in_bigquery(bigquery_client: bigquery.Client, table_re
     downstream data analytics, model monitoring, and drift detection over time.
 
     Args:
+        bigquery_client (bigquery.Client): The BigQuery client used for executing the insert job.
+        table_reference (str): The BigQuery table reference to insert data into (e.g., project.dataset.table).
         uuid_str (str): A unique identifier for the inference run.
         predicted_class (str): The class predicted by the model (e.g. 'circles' or 'squares').
         probability (float): The confidence score of the prediction.
@@ -93,13 +95,18 @@ def insert_inference_data_in_bigquery(bigquery_client: bigquery.Client, table_re
         print(f"Successfully inserted inference record {uuid_str} into BigQuery.")
 
 
-def get_recent_inferences(limit: int = 5) -> List[Dict]:
+def get_recent_inferences(bigquery_client: bigquery.Client, table_reference: str,
+                          target_columns: str, limit: int = 5) -> List[Dict]:
     """
     Retrieves the most recent inference records from BigQuery. 
     This function provides a mechanism for the Gradio frontend to query and display 
     the latest inference histories and model predictions to end users in real-time.
 
     Args:
+        bigquery_client (bigquery.Client): The BigQuery client used to execute the query.
+        table_reference (str): The BigQuery table reference to query (e.g., project.dataset.table).
+        target_columns (str): The specific columns to retrieve from the BigQuery table,
+        provided as a comma-separated string.
         limit (int): The maximum number of records to retrieve. Default is 5.
 
     Returns:
@@ -108,9 +115,9 @@ def get_recent_inferences(limit: int = 5) -> List[Dict]:
     # We use a SQL query to fetch the latest rows by ordering the timestamp descending.
     query = f"""
         SELECT 
-            uuid, predicted_class, probability, timestamp, kubernetes_node, gcs_image_uri, additional_comment
+            {target_columns}
         FROM 
-            `{TABLE_REFERENCE}`
+            `{table_reference}`
         ORDER BY 
             timestamp DESC
         LIMIT {limit}
