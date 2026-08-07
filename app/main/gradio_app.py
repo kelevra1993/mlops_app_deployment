@@ -1,15 +1,15 @@
-import gradio as gr
 import os
 import sys
+
+import gradio as gr
+from google.cloud import bigquery, storage
 
 # Ensure the root project directory is in the Python path for imports to work correctly
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from app.utilities.gradio_utilities import process_image, get_default_inference_data_images, fetch_recent_inferences
-from app.triton_inference.triton_inference_functions import get_inference_server_client
-from google.cloud import bigquery, storage
-
+from app.utilities.inference_utilities import get_inference_server_client
 from app.utilities.constants import PROJECT_ID, TABLE_REFERENCE, BUCKET_NAME, INFERRED_IMAGE_PREFIX
+from app.utilities.gradio_utilities import process_image, get_default_inference_data_images, fetch_recent_inferences
 
 # Initialize the BigQuery client. It will automatically use the default credentials
 # available in the environment (e.g. from the service account attached to the GKE node).
@@ -22,7 +22,7 @@ storage_client = storage.Client(project=PROJECT_ID)
 
 # Prepare images for the dropdown
 inference_images = get_default_inference_data_images(data_directory="inference_data") # Assuming 'inference_data' is the correct relative directory
-image_choices = [os.path.basename(img) for img in inference_images]
+image_default_choices = [os.path.basename(img) for img in inference_images]
 
 replica_name = os.getenv("REPLICA_NAME", "POD NOT IDENTIFIED")
 triton_server_url = os.getenv("TRITON_SERVER_URL", "localhost:8001")
@@ -38,7 +38,7 @@ with gr.Blocks(title="Triton Inference App") as demo:
     with gr.Row():
         with gr.Column():
             upload_input = gr.Image(type="filepath", label="Upload your own image")
-            dropdown_input = gr.Dropdown(choices=image_choices, label="Or select from inference data")
+            dropdown_input = gr.Dropdown(choices=image_default_choices, label="Or select from inference data")
             comment_input = gr.Textbox(label="Additional Comment", placeholder="Enter any extra details here...")
             submit_btn = gr.Button("Run Inference", variant="primary")
             
