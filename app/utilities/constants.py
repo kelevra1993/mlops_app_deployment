@@ -1,2 +1,15 @@
 
+# Simple Expected Image File Extensions
 IMAGE_FILE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".tiff")
+
+# Google Cloud Platform Project Constants
+PROJECT_ID = "ml-ops-classifier-app"
+
+# Big Query Constants
+DATASET_ID = "machine_learning_predictions_euw3"
+TABLE_ID = "inference_history"
+TABLE_REFERENCE = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
+
+# Google Cloud Storage Constants
+BUCKET_NAME = "machine-learning-ops-images-bucket-2026"
+INFERRED_IMAGE_PREFIX = "inferred_image"

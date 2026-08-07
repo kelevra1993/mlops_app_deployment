@@ -3,22 +3,19 @@ from google.cloud import bigquery
 from google.cloud import storage
 from datetime import datetime
 
-# Initialize the BigQuery client. It will automatically use the default credentials
+from app.utilities.constants import PROJECT_ID, TABLE_REFERENCE, BUCKET_NAME, INFERRED_IMAGE_PREFIX
+
+
+# Initialize the GCS and Bigquery Client client. It will automatically use the default credentials
 # available in the environment (e.g. from the service account attached to the GKE node).
-client = bigquery.Client(project="ml-ops-classifier-app")
+big_query_client = bigquery.Client(project=PROJECT_ID)
+google_cloud_storage_client = storage.Client(project=PROJECT_ID)
 
-DATASET_ID = "machine_learning_predictions_euw3"
-TABLE_ID = "inference_history"
-TABLE_REF = f"ml-ops-classifier-app.{DATASET_ID}.{TABLE_ID}"
-
-# Initialize the Google Cloud Storage client. Like BigQuery, this will use
-# the default credentials available in the environment.
-client = storage.Client(project="ml-ops-classifier-app")
-
-BUCKET_NAME = "machine-learning-ops-images-bucket-2026"
 PREFIX = "inferred_image"
 
 
+# TODO WILL BE MADE MORE GENERAL CONSIDER CREATING A GCP CLASS WITH THE BUCKET NAME ALREADY SET AND THE CLIENT ?
+#  SAME FOR BIGQUERY ?
 def upload_inferred_image(local_file_path: str, destination_blob_name: str) -> str:
     """
     Uploads an image from the local filesystem to the GCS bucket under the 'inferred_image' prefix.
