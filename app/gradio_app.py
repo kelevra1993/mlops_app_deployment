@@ -5,8 +5,9 @@ import sys
 # Ensure the root project directory is in the Python path for imports to work correctly
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from app.utilities.gradio_functions import process_image, get_inference_data_images, fetch_recent_inferences
+from app.utilities.gradio_utilities import process_image, get_default_inference_data_images, fetch_recent_inferences
 from app.triton_inference.triton_inference_functions import get_inference_server_client
+from google.cloud import bigquery, storage
 
 from app.utilities.constants import PROJECT_ID, TABLE_REFERENCE, BUCKET_NAME, INFERRED_IMAGE_PREFIX
 
@@ -20,7 +21,7 @@ storage_client = storage.Client(project=PROJECT_ID)
 
 
 # Prepare images for the dropdown
-inference_images = get_inference_data_images()
+inference_images = get_default_inference_data_images(data_directory="inference_data") # Assuming 'inference_data' is the correct relative directory
 image_choices = [os.path.basename(img) for img in inference_images]
 
 replica_name = os.getenv("REPLICA_NAME", "POD NOT IDENTIFIED")
@@ -49,7 +50,17 @@ with gr.Blocks(title="Triton Inference App") as demo:
             
     # Connect the UI elements to the processing function
     submit_btn.click(
-        fn=lambda uploaded, selected, comment: process_image(uploaded, selected, comment, triton_client),
+        fn=lambda uploaded, selected, comment: process_image(
+            user_image_path=uploaded, 
+            default_image_path=selected, 
+            additional_comment=comment, 
+            client=triton_client,
+            inferred_image_prefix=INFERRED_IMAGE_PREFIX,
+            bucket_name=BUCKET_NAME,
+            table_reference=TABLE_REFERENCE,
+            bigquery_client=bigquery_client,
+            storage_client=storage_client
+        ),
         inputs=[upload_input, dropdown_input, comment_input],
         outputs=[out_image_name, out_score, out_class, out_image]
     )
