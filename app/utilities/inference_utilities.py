@@ -9,8 +9,8 @@ from os.path import join, dirname, basename
 import tritonclient.grpc as nvclient
 
 
-def preprocess(image: np.ndarray, height: int, width: int, keep_ratio: bool = False,
-               center: bool = False) -> np.ndarray:
+def preprocess(image: np.ndarray, height: int, width: int,
+               keep_ratio: bool = False, center: bool = False) -> np.ndarray:
     """
     Preprocesses an input image via OpenCV to match the input shape expected by the Triton inference model. 
     It resizes the image to the specified dimensions (e.g., 300x300) and optionally applies padding to maintain 
@@ -19,10 +19,11 @@ def preprocess(image: np.ndarray, height: int, width: int, keep_ratio: bool = Fa
         image (np.ndarray): a numpy array of an image in BLUE, GREEN, RED opened by OpenCV
         height (int): desired output height
         width (int): desired output width
-        keep_ratio (bool): boolean that decides whether or not we keep the aspect ratio of an image
+        keep_ratio (bool): boolean that decides if we keep the aspect ratio of an image
                         by default keep_ratio is False.
                         In the case where we decide to keep the aspect ratio, black bars will either be appended
-                        on the right hand side of the images or on the bottom of the image to fit our desired height and width
+                        on the right hand side of the images or on the bottom of the image to fit
+                        our desired height and width
         center (bool): boolean that decides if image is centered while applying keep_ratio
 
     Returns:
@@ -85,10 +86,8 @@ def get_inference_server_client(triton_server_url: str) -> nvclient.InferenceSer
     return nvclient.InferenceServerClient(triton_server_url, ssl=False)
 
 
-def run_neural_network_inference(data: np.ndarray,
-                                 client: nvclient.InferenceServerClient,
-                                 input_tensor: str,
-                                 output_tensor: str) -> np.ndarray:
+def run_neural_network_inference(data: np.ndarray, client: nvclient.InferenceServerClient,
+                                 input_tensor: str, output_tensor: str) -> np.ndarray:
     """
     Executes the inference request against the Triton backend model. 
     It formats the preprocessed image into the expected gRPC tensor format, sends it to the server, 
@@ -154,24 +153,25 @@ def get_images(path: str, basename: bool = False, sort: bool = False,
     return images
 
 
-def perform_inference(image: np.ndarray, client: nvclient.InferenceServerClient) -> Tuple[str, float]:
+def perform_inference(image: np.ndarray, client: nvclient.InferenceServerClient, input_tensor: str,
+                      output_tensor: str) -> Tuple[str, float]:
     """
     A high-level wrapper used by the API and Gradio endpoints to process a single image. 
     It ties together the OpenCV image preprocessing steps and the Triton gRPC execution, 
-    ultimately mapping the model's raw probability scores into human-readable classification labels ('squares' or 'circles').
+    ultimately mapping the model's raw probability scores into human-readable classification labels
+     ('squares' or 'circles').
 
     Args:
         image (np.ndarray): The input image loaded via OpenCV (BGR format).
         client (nvclient.InferenceServerClient): The Triton Inference Server client.
+        input_tensor (str): The input tensor string for the model.
+        output_tensor (str): The output tensor string for the model.
 
     Returns:
         Tuple[str, float]: A tuple containing the predicted class (str) and the prediction score (float).
     """
     if image is None:
         return "Unknown", 0.0
-
-    input_tensor = 'Input-Producer/Placeholders/Images/Placeholder_1:0'
-    output_tensor = 'Outputs/Softmax:0'
 
     # Preprocess the image to match the neural network input shape (300x300)
     preprocessed_image = preprocess(image, height=300, width=300, keep_ratio=True, center=False)

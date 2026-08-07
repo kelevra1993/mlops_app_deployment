@@ -6,7 +6,7 @@ import uuid
 # Ensure the root project directory is in the Python path for imports to work correctly
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from app.triton_inference.triton_inference_functions import (
+from app.utilities.inference_utilities import (
     get_images,
     perform_inference,
 )
@@ -71,7 +71,12 @@ def process_image(uploaded_image, selected_inference_image, additional_comment, 
         return image_name, 0.0, "Failed to load image", None
         
     # 1. Run inference
-    predicted_class, score = perform_inference(image_to_process, client)
+    predicted_class, score = perform_inference(
+        image_to_process, 
+        client,
+        'Input-Producer/Placeholders/Images/Placeholder_1:0',
+        'Outputs/Softmax:0'
+    )
     
     # 2. Generate UUID for this inference run
     inference_uuid = str(uuid.uuid4())

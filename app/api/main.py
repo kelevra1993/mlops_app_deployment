@@ -8,7 +8,7 @@ from fastapi import FastAPI, UploadFile, File, Form
 from pydantic import BaseModel
 
 # Importing the required logic from our other modules
-from app.triton_inference.triton_inference_functions import get_inference_server_client, perform_inference
+from app.utilities.inference_utilities import get_inference_server_client, perform_inference
 from app.bigquery.client import insert_inference_data
 from app.gcs.client import upload_inferred_image
 
@@ -62,7 +62,12 @@ async def run_inference(
             return {"message": "Invalid image format.", "uuid": inference_uuid, "predicted_class": "Error", "probability": 0.0, "gcs_uri": ""}
             
         # 3. Perform inference via Triton
-        predicted_class, probability = perform_inference(image_np, triton_client)
+        predicted_class, probability = perform_inference(
+            image_np, 
+            triton_client,
+            'Input-Producer/Placeholders/Images/Placeholder_1:0',
+            'Outputs/Softmax:0'
+        )
         
         # 4. Upload the saved image to Google Cloud Storage
         gcs_blob_name = f"{inference_uuid}_{image.filename}"
