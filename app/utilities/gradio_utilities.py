@@ -2,6 +2,7 @@ import cv2
 import os
 import sys
 import uuid
+from typing import Tuple, List, Any
 
 # Ensure the root project directory is in the Python path for imports to work correctly
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
@@ -10,89 +11,146 @@ from app.utilities.inference_utilities import (
     get_images,
     perform_inference,
 )
-from app.utilities.gcp_utilities import insert_inference_data_in_bigquery, get_recent_inferences, upload_object
+from app.utilities.gcp_utilities import insert_inference_data_in_bigquery, get_recent_inferences, upload_object, \
+    storage_client, bigquery_client
 from app.utilities.constants import BUCKET_NAME, INFERRED_IMAGE_PREFIX, TABLE_REFERENCE, PREDICTED_INFROMATION_COLUMNS
 
 
-def get_default_inference_data_images(data_directory):
+def get_default_inference_data_images(data_directory: str) -> List[str]:
     """
     todo update documentation
     """
 
     if os.path.exists(data_directory):
-        return get_images(data_directory, basename=False)
+        return get_images(path=data_directory, basename=False)
 
     return []
 
 
-def process_image(user_image_path, default_image_path, additional_comment, client):
+def determine_image_to_process(user_image_path: str, default_image_path: str) -> Tuple[str, str, Any]:
     """
-    todo to be properly documented
+    Determines which image to process based on user upload or default selection.
+    
+    This function checks if the user has uploaded an image, which takes precedence.
+    If not, it falls back to the default selected image. It reads the image using OpenCV.
+    
+    Args:
+        user_image_path (str): The file path of the uploaded image.
+        default_image_path (str): The file path of the default selected image.
+        
+    Returns:
+        tuple: (image_name, image_path, image_to_process)
     """
-
-
-
-    # todo move this to it's own function determine_image_to_process
     image_name = "Unknown"
-    image_to_process = None
     image_path = None
 
     if user_image_path is not None:
-
         # If user uploaded an image, it takes precedence
         image_name = os.path.basename(user_image_path)
         image_path = user_image_path
-
-        # Read image using cv2 (Gradio returns filepath when type='filepath')
-        image_to_process = cv2.imread(user_image_path)
 
     elif default_image_path is not None:
         # Otherwise, use the selected inference data image
         image_name = os.path.basename(default_image_path)
         image_path = default_image_path
-        image_to_process = cv2.imread(image_path)
-    # todo end of move this to it's own function determine_image_to_process
+
+    image_to_process = cv2.imread(image_path)
+
+    return image_name, image_path, image_to_process
+
+
+def upload_data_to_google_cloud(image_name: str, image_path: str, predicted_class: str, score: float,
+                                additional_comment: str, destination_file_prefix: str, bucket_name: str,
+                                table_reference: str, bigquery_client: Any, storage_client: Any) -> None:
+    """
+    Uploads the image to Google Cloud Storage and inserts inference metadata into BigQuery.
+    
+    This function handles generating a unique UUID for the inference run, uploading the image
+    to the configured GCS bucket, and recording the inference results in BigQuery for downstream analytics.
+    
+    Args:
+        image_name (str): The name of the image file.
+        image_path (str): The local file path to the image.
+        predicted_class (str): The class predicted by the model.
+        score (float): The confidence probability score of the prediction.
+        additional_comment (str): Any additional comments provided by the user.
+        destination_file_prefix (str): The prefix (folder) in GCS for the blob name.
+        bucket_name (str): The name of the GCS bucket.
+        table_reference (str): The BigQuery table reference.
+        bigquery_client (Any): The BigQuery client object.
+        storage_client (Any): The Google Cloud Storage client object.
+    
+    Returns:
+        None
+    """
+    # Generate UUID for this inference run
+    inference_uuid = str(uuid.uuid4())
+
+    # Upload to Google Cloud Storage
+    gcs_blob_name = f"{destination_file_prefix}/{inference_uuid}_{image_name}"
+    gcs_uri = upload_object(storage_client=storage_client,
+                            bucket_name=bucket_name,
+                            local_file_path=image_path,
+                            destination_file_name=gcs_blob_name)
+
+    # Save to BigQuery with the required prefix
+    prefixed_comment = f"Called By Gradio : {additional_comment}" if additional_comment else "Called By Gradio : "
+    replica_name = os.getenv("REPLICA_NAME", "POD NOT IDENTIFIED")
+
+    insert_inference_data_in_bigquery(
+        bigquery_client=bigquery_client, table_reference=table_reference,
+        uuid_str=inference_uuid, predicted_class=predicted_class, probability=score,
+        kubernetes_node=replica_name, gcs_image_uri=gcs_uri, additional_comment=prefixed_comment)
+
+
+def process_image(user_image_path: str, default_image_path: str,
+                  additional_comment: str, client: Any) -> Tuple[str, float, str, str]:
+    """
+    Processes the selected or uploaded image, runs inference, and uploads data.
+    
+    This function acts as the main handler for the Gradio interface. It determines which image
+    to use, runs inference via Triton, and stores the results in GCS and BigQuery.
+    
+    Args:
+        user_image_path (str): Filepath to the uploaded image.
+        default_image_path (str): The filename/filepath of the selected image from the dropdown.
+        additional_comment (str): The user's input from the comment Textbox.
+        client: Triton Inference Server client.
+        
+    Returns:
+        tuple: (image_name, score, predicted_class, image_path)
+    """
+    image_name, image_path, image_to_process = determine_image_to_process(
+        user_image_path=user_image_path,
+        default_image_path=default_image_path
+    )
 
     # TODO IMPLEMENTATION WILL BE CHANGED TO LOAD ERROR IMAGE WITH MESSAGE
     if image_to_process is None:
         return image_name, 0.0, "Failed to load image", None
 
-    # 1. Run inference
-    predicted_class, score = perform_inference(image=image_to_process, client=client,
-                                               input_tensor='Input-Producer/Placeholders/Images/Placeholder_1:0',
-                                               output_tensor='Outputs/Softmax:0',
-                                               height=300, width=300, keep_ratio=True, center=False)
-
-
-    # todo create function upload_data_to_google_cloud
-
-    # 2. Generate UUID for this inference run
-    inference_uuid = str(uuid.uuid4())
-
-    # 3. Upload to Google Cloud Storage
-    gcs_blob_name = f"{INFERRED_IMAGE_PREFIX}/{inference_uuid}_{image_name}"
-    gcs_uri = upload_object(storage_client, BUCKET_NAME, image_path, gcs_blob_name)
-
-    # 4. Save to BigQuery with the required prefix
-    prefixed_comment = f"Called By Gradio : {additional_comment}" if additional_comment else "Called By Gradio : "
-    replica_name = os.getenv("REPLICA_NAME", "POD NOT IDENTIFIED")
-
-    insert_inference_data_in_bigquery(
-        bigquery_client=bigquery_client,
-        table_reference=TABLE_REFERENCE,
-        uuid_str=inference_uuid,
-        predicted_class=predicted_class,
-        probability=score,
-        kubernetes_node=replica_name,
-        gcs_image_uri=gcs_uri,
-        additional_comment=prefixed_comment
+    # Run inference
+    predicted_class, score = perform_inference(
+        image=image_to_process,
+        client=client,
+        input_tensor='Input-Producer/Placeholders/Images/Placeholder_1:0',
+        output_tensor='Outputs/Softmax:0',
+        height=300,
+        width=300,
+        keep_ratio=True,
+        center=False
     )
-    # todo end of create function upload_data_to_google_cloud
+
+    upload_data_to_google_cloud(image_name=image_name, image_path=image_path,
+                                predicted_class=predicted_class, score=score, additional_comment=additional_comment,
+                                destination_file_prefix=INFERRED_IMAGE_PREFIX, bucket_name=BUCKET_NAME,
+                                table_reference=TABLE_REFERENCE, bigquery_client=bigquery_client,
+                                storage_client=storage_client)
 
     return image_name, score, predicted_class, image_path
 
 
-def fetch_recent_inferences():
+def fetch_recent_inferences() -> List[List[Any]]:
     """
     Fetches the 5 most recent inferences from BigQuery and formats them for the Gradio Dataframe.
     """
