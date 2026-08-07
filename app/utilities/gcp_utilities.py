@@ -1,62 +1,64 @@
-import os
+from typing import List, Dict
 from google.cloud import bigquery
 from google.cloud import storage
 from datetime import datetime
 
 from app.utilities.constants import PROJECT_ID, TABLE_REFERENCE, BUCKET_NAME, INFERRED_IMAGE_PREFIX
 
-
-# Initialize the GCS and Bigquery Client client. It will automatically use the default credentials
+# Initialize the BigQuery client. It will automatically use the default credentials
 # available in the environment (e.g. from the service account attached to the GKE node).
-big_query_client = bigquery.Client(project=PROJECT_ID)
-google_cloud_storage_client = storage.Client(project=PROJECT_ID)
+bigquery_client = bigquery.Client(project=PROJECT_ID)
 
-PREFIX = "inferred_image"
+# Initialize the Google Cloud Storage client. Like BigQuery, this will use the default credentials
+# available in the environment.
+storage_client = storage.Client(project=PROJECT_ID)
 
 
-# TODO WILL BE MADE MORE GENERAL CONSIDER CREATING A GCP CLASS WITH THE BUCKET NAME ALREADY SET AND THE CLIENT ?
-#  SAME FOR BIGQUERY ?
-def upload_inferred_image(local_file_path: str, destination_blob_name: str) -> str:
+def upload_object(storage_client: storage.Client, bucket_name: str, local_file_path: str,
+                  destination_file_name: str) -> str:
     """
-    Uploads an image from the local filesystem to the GCS bucket under the 'inferred_image' prefix.
+    Uploads a processed image to Google Cloud Storage.
+
+    This function is a critical step in the MLOps pipeline. It takes an image
+    and uploads it to the provided GCS bucket. By storing these objects in GCS, 
+    downstream analytics and the BigQuery history table can reference the exact 
+    images the model inferred on.
 
     Args:
-        local_file_path (str): The absolute path to the local image file.
-        destination_blob_name (str): The name to give the file in GCS (e.g. uuid.jpg).
+        storage_client (storage.Client): The Google Cloud Storage client used for authentication and connection.
+        bucket_name (str): The name of the target GCS bucket where the object should be stored.
+        local_file_path (str): The absolute or relative path to the local file to be uploaded.
+        destination_file_name (str): The full path and filename the object will have in the GCS bucket.
 
     Returns:
-        str: The full gs:// URI of the uploaded object, or an empty string if upload fails.
+        str: The full GCS URI (gs://bucket/path) of the successfully uploaded object, or an empty string if it fails.
     """
     try:
-        bucket = client.bucket(BUCKET_NAME)
+        # Create bucket object
+        bucket = storage_client.bucket(bucket_name)
 
-        # The blob path is the combination of our prefix and the desired filename
-        full_blob_path = f"{PREFIX}/{destination_blob_name}"
-
-        blob = bucket.blob(full_blob_path)
+        # Create blob object
+        blob = bucket.blob(destination_file_name)
 
         # Perform the actual upload from the local file
         blob.upload_from_filename(local_file_path)
 
-        gcs_uri = f"gs://{BUCKET_NAME}/{full_blob_path}"
-        print(f"Successfully uploaded image to {gcs_uri}")
+        gcs_uri = f"gs://{bucket_name}/{destination_file_name}"
+        print(f"Successfully uploaded object to {gcs_uri}")
 
         return gcs_uri
     except Exception as e:
-        print(f"Error uploading image to GCS: {e}")
+        print(f"Error uploading object to GCS: {e}")
         return ""
 
 
-def insert_inference_data(
-        uuid_str: str,
-        predicted_class: str,
-        probability: float,
-        kubernetes_node: str,
-        gcs_image_uri: str,
-        additional_comment: str
-):
+def insert_inference_data_in_bigquery(bigquery_client: bigquery.Client, table_reference: str, uuid_str: str,
+                                      predicted_class: str, probability: float, kubernetes_node: str,
+                                      gcs_image_uri: str, additional_comment: str) -> None:
     """
-    Inserts a single inference record into the BigQuery inference_history table.
+    Inserts a single inference record into the BigQuery inference_history table. 
+    This acts as the central data warehouse component of the MLOps pipeline, allowing for 
+    downstream data analytics, model monitoring, and drift detection over time.
 
     Args:
         uuid_str (str): A unique identifier for the inference run.
@@ -65,6 +67,9 @@ def insert_inference_data(
         kubernetes_node (str): The name of the node/replica processing this request.
         gcs_image_uri (str): The Google Cloud Storage URI where the inferred image was saved.
         additional_comment (str): Any extra comments to store alongside the record.
+        
+    Returns:
+        None
     """
 
     # We construct the row dictionary matching the schema defined in Terraform.
@@ -80,7 +85,7 @@ def insert_inference_data(
     }
 
     # insert_rows_json streams data directly into BigQuery.
-    errors = client.insert_rows_json(TABLE_REF, [row_to_insert])
+    errors = bigquery_client.insert_rows_json(table_reference, [row_to_insert])
 
     if errors:
         print(f"Encountered errors while inserting rows into BigQuery: {errors}")
@@ -88,29 +93,31 @@ def insert_inference_data(
         print(f"Successfully inserted inference record {uuid_str} into BigQuery.")
 
 
-def get_recent_inferences(limit: int = 5):
+def get_recent_inferences(limit: int = 5) -> List[Dict]:
     """
-    Retrieves the most recent inference records from BigQuery.
+    Retrieves the most recent inference records from BigQuery. 
+    This function provides a mechanism for the Gradio frontend to query and display 
+    the latest inference histories and model predictions to end users in real-time.
 
     Args:
         limit (int): The maximum number of records to retrieve. Default is 5.
 
     Returns:
-        list[dict]: A list of dictionary objects representing the rows.
+        List[Dict]: A list of dictionary objects representing the rows.
     """
     # We use a SQL query to fetch the latest rows by ordering the timestamp descending.
     query = f"""
         SELECT 
             uuid, predicted_class, probability, timestamp, kubernetes_node, gcs_image_uri, additional_comment
         FROM 
-            `{TABLE_REF}`
+            `{TABLE_REFERENCE}`
         ORDER BY 
             timestamp DESC
         LIMIT {limit}
     """
 
     try:
-        query_job = client.query(query)
+        query_job = bigquery_client.query(query)
         results = query_job.result()  # Wait for the job to complete
 
         # Convert the BigQuery Row objects to standard python dictionaries
