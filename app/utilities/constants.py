@@ -1,3 +1,5 @@
+import os
+
 # Simple Expected Image File Extensions
 IMAGE_FILE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".tiff")
 
@@ -19,3 +21,7 @@ PREDICTED_INFROMATION_COLUMNS = ["uuid",
 # Google Cloud Storage Constants
 BUCKET_NAME = "machine-learning-ops-images-bucket-2026"
 INFERRED_IMAGE_PREFIX = "inferred_image"
+
+# Environment Variables
+REPLICA_NAME = os.getenv("REPLICA_NAME", "POD NOT IDENTIFIED")
+TRITON_SERVER_URL = os.getenv("TRITON_SERVER_URL", "localhost:8001")
