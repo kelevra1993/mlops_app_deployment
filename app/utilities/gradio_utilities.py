@@ -13,7 +13,14 @@ from app.utilities.gcp_utilities import insert_inference_data_in_bigquery, get_r
 
 def get_default_inference_data_images(data_directory: str) -> List[str]:
     """
-    todo update documentation
+    Retrieves default images from the specified directory to populate the Gradio frontend selection dropdown,
+     allowing users to test the Triton inference backend without uploading their own images.
+    
+    Args:
+        data_directory (str): The local directory path containing default images for inference testing.
+        
+    Returns:
+        List[str]: A list of file paths for the images found in the directory.
     """
 
     if os.path.exists(data_directory):
@@ -68,7 +75,7 @@ def upload_data_to_google_cloud(image_name: str, image_path: str, predicted_clas
         image_path (str): The local file path to the image.
         predicted_class (str): The class predicted by the model.
         score (float): The confidence probability score of the prediction.
-        additional_comment (str): Any additional comments provided by the user.
+        additional_comment (str): Any additional comments provided by the userow.
         destination_file_prefix (str): The prefix (folder) in GCS for the blob name.
         bucket_name (str): The name of the GCS bucket.
         table_reference (str): The BigQuery table reference.
@@ -145,24 +152,27 @@ def process_image(user_image_path: str, default_image_path: str, additional_comm
     return image_name, score, predicted_class, image_path
 
 
-def fetch_recent_inferences() -> List[List[Any]]:
+def fetch_recent_inferences(target_columns: List[str], bigquery_client: Any, table_reference: str) -> List[List[Any]]:
     """
-    Fetches the 5 most recent inferences from BigQuery and formats them for the Gradio Dataframe.
+    Fetches the 5 most recent inference records from BigQuery to display in the Gradio frontend's history dataframe,
+    providing users with a summary of recent MLOps pipeline activity.
+    
+    Args:
+        target_columns (List[str]): List of column names to fetch from the BigQuery table.
+        bigquery_client (Any): The BigQuery client object.
+        table_reference (str): The BigQuery table reference.
+        
+    Returns:
+        List[List[Any]]: A list of formatted rows containing inference metadata for display in the Gradio Dataframe.
     """
-    target_cols = ", ".join(PREDICTED_INFROMATION_COLUMNS)
-    rows = get_recent_inferences(bigquery_client=bigquery_client, table_reference=TABLE_REFERENCE,
-                                 target_columns=target_cols, limit=5)
 
-    # Gradio's gr.Dataframe expects a list of lists (rows of columns)
+    rows = get_recent_inferences(bigquery_client=bigquery_client, table_reference=table_reference,
+                                 target_columns=target_columns, limit=5)
+
+    # Gradio's grow.Dataframe expects a list of lists (rows of columns)
     formatted_rows = []
-    for r in rows:
-        formatted_rows.append([
-            r.get("uuid", ""),
-            r.get("predicted_class", ""),
-            r.get("probability", 0.0),
-            str(r.get("timestamp", "")),
-            r.get("kubernetes_node", ""),
-            r.get("gcs_image_uri", ""),
-            r.get("additional_comment", "")
-        ])
+    for row in rows:
+        formatted_rows.append([row.get("uuid", ""), row.get("predicted_class", ""), row.get("probability", 0.0),
+                               str(row.get("timestamp", "")), row.get("kubernetes_node", ""),
+                               row.get("gcs_image_uri", ""), row.get("additional_comment", "")])
     return formatted_rows

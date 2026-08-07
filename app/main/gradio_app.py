@@ -8,7 +8,7 @@ from google.cloud import bigquery, storage
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from app.utilities.inference_utilities import get_inference_server_client
-from app.utilities.constants import PROJECT_ID, TABLE_REFERENCE, BUCKET_NAME, INFERRED_IMAGE_PREFIX
+from app.utilities.constants import PROJECT_ID, TABLE_REFERENCE, BUCKET_NAME, INFERRED_IMAGE_PREFIX, PREDICTED_INFROMATION_COLUMNS
 from app.utilities.gradio_utilities import process_image, get_default_inference_data_images, fetch_recent_inferences
 
 # Initialize the BigQuery client. It will automatically use the default credentials
@@ -77,7 +77,11 @@ with gr.Blocks(title="Triton Inference App") as demo:
     recent_table = gr.Dataframe(headers=["UUID", "Predicted Class", "Probability", "Timestamp", "Node", "GCS URI", "Comment"])
     
     fetch_btn.click(
-        fn=fetch_recent_inferences,
+        fn=lambda: fetch_recent_inferences(
+            target_columns=PREDICTED_INFROMATION_COLUMNS,
+            bigquery_client=bigquery_client,
+            table_reference=TABLE_REFERENCE
+        ),
         inputs=[],
         outputs=[recent_table]
     )
