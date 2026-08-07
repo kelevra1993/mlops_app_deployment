@@ -66,7 +66,11 @@ async def run_inference(
             image_np, 
             triton_client,
             'Input-Producer/Placeholders/Images/Placeholder_1:0',
-            'Outputs/Softmax:0'
+            'Outputs/Softmax:0',
+            height=300,
+            width=300,
+            keep_ratio=True,
+            center=False
         )
         
         # 4. Upload the saved image to Google Cloud Storage

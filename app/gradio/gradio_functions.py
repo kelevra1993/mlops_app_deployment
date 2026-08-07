@@ -75,7 +75,11 @@ def process_image(uploaded_image, selected_inference_image, additional_comment, 
         image_to_process, 
         client,
         'Input-Producer/Placeholders/Images/Placeholder_1:0',
-        'Outputs/Softmax:0'
+        'Outputs/Softmax:0',
+        height=300,
+        width=300,
+        keep_ratio=True,
+        center=False
     )
     
     # 2. Generate UUID for this inference run

@@ -155,19 +155,21 @@ def get_images(path: str, basename: bool = False, sort: bool = False,
     return images
 
 
-def perform_inference(image: np.ndarray, client: nvclient.InferenceServerClient, input_tensor: str,
-                      output_tensor: str) -> Tuple[str, float]:
+def perform_inference(image: np.ndarray, client: nvclient.InferenceServerClient, input_tensor: str, output_tensor: str, height: int, width: int, keep_ratio: bool, center: bool) -> Tuple[str, float]:
     """
     A high-level wrapper used by the API and Gradio endpoints to process a single image. 
     It ties together the OpenCV image preprocessing steps and the Triton gRPC execution, 
-    ultimately mapping the model's raw probability scores into human-readable classification labels
-     ('squares' or 'circles').
+    ultimately mapping the model's raw probability scores into human-readable classification labels ('squares' or 'circles').
 
     Args:
         image (np.ndarray): The input image loaded via OpenCV (BGR format).
         client (nvclient.InferenceServerClient): The Triton Inference Server client.
         input_tensor (str): The input tensor string for the model.
         output_tensor (str): The output tensor string for the model.
+        height (int): The desired height for preprocessing the image.
+        width (int): The desired width for preprocessing the image.
+        keep_ratio (bool): Boolean indicating if the aspect ratio should be kept during preprocessing.
+        center (bool): Boolean indicating if the image should be centered during preprocessing.
 
     Returns:
         Tuple[str, float]: A tuple containing the predicted class (str) and the prediction score (float).
@@ -175,8 +177,8 @@ def perform_inference(image: np.ndarray, client: nvclient.InferenceServerClient,
     if image is None:
         return "Unknown", 0.0
 
-    # Preprocess the image to match the neural network input shape (300x300)
-    preprocessed_image = preprocess(image, height=300, width=300, keep_ratio=True, center=False)
+    # Preprocess the image to match the neural network input shape
+    preprocessed_image = preprocess(image, height=height, width=width, keep_ratio=keep_ratio, center=center)
 
     # Expand dimensions to add the batch dimension expected by the model
     preprocessed_image = np.expand_dims(preprocessed_image, 0)
