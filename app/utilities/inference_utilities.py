@@ -155,11 +155,14 @@ def get_images(path: str, basename: bool = False, sort: bool = False,
     return images
 
 
-def perform_inference(image: np.ndarray, client: nvclient.InferenceServerClient, input_tensor: str, output_tensor: str, height: int, width: int, keep_ratio: bool, center: bool) -> Tuple[str, float]:
+def perform_inference(image: np.ndarray, client: nvclient.InferenceServerClient,
+                      input_tensor: str, output_tensor: str, height: int, width: int,
+                      keep_ratio: bool, center: bool) -> Tuple[str, float]:
     """
     A high-level wrapper used by the API and Gradio endpoints to process a single image. 
     It ties together the OpenCV image preprocessing steps and the Triton gRPC execution, 
-    ultimately mapping the model's raw probability scores into human-readable classification labels ('squares' or 'circles').
+    ultimately mapping the model's raw probability scores into human-readable classification labels
+     ('squares' or 'circles').
 
     Args:
         image (np.ndarray): The input image loaded via OpenCV (BGR format).
