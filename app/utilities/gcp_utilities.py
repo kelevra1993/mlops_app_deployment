@@ -3,16 +3,6 @@ from google.cloud import bigquery
 from google.cloud import storage
 from datetime import datetime
 
-from app.utilities.constants import PROJECT_ID, TABLE_REFERENCE, BUCKET_NAME, INFERRED_IMAGE_PREFIX
-
-# Initialize the BigQuery client. It will automatically use the default credentials
-# available in the environment (e.g. from the service account attached to the GKE node).
-bigquery_client = bigquery.Client(project=PROJECT_ID)
-
-# Initialize the Google Cloud Storage client. Like BigQuery, this will use the default credentials
-# available in the environment.
-storage_client = storage.Client(project=PROJECT_ID)
-
 
 def upload_object(storage_client: storage.Client, bucket_name: str, local_file_path: str,
                   destination_file_name: str) -> str:

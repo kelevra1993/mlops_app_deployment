@@ -8,6 +8,17 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 from app.utilities.gradio_functions import process_image, get_inference_data_images, fetch_recent_inferences
 from app.triton_inference.triton_inference_functions import get_inference_server_client
 
+from app.utilities.constants import PROJECT_ID, TABLE_REFERENCE, BUCKET_NAME, INFERRED_IMAGE_PREFIX
+
+# Initialize the BigQuery client. It will automatically use the default credentials
+# available in the environment (e.g. from the service account attached to the GKE node).
+bigquery_client = bigquery.Client(project=PROJECT_ID)
+
+# Initialize the Google Cloud Storage client. Like BigQuery, this will use the default credentials
+# available in the environment.
+storage_client = storage.Client(project=PROJECT_ID)
+
+
 # Prepare images for the dropdown
 inference_images = get_inference_data_images()
 image_choices = [os.path.basename(img) for img in inference_images]
