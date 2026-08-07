@@ -7,13 +7,8 @@ from typing import Tuple, List, Any
 # Ensure the root project directory is in the Python path for imports to work correctly
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from app.utilities.inference_utilities import (
-    get_images,
-    perform_inference,
-)
-from app.utilities.gcp_utilities import insert_inference_data_in_bigquery, get_recent_inferences, upload_object, \
-    storage_client, bigquery_client
-from app.utilities.constants import BUCKET_NAME, INFERRED_IMAGE_PREFIX, TABLE_REFERENCE, PREDICTED_INFROMATION_COLUMNS
+from app.utilities.inference_utilities import get_images, perform_inference
+from app.utilities.gcp_utilities import insert_inference_data_in_bigquery, get_recent_inferences, upload_object
 
 
 def get_default_inference_data_images(data_directory: str) -> List[str]:
@@ -103,8 +98,9 @@ def upload_data_to_google_cloud(image_name: str, image_path: str, predicted_clas
         kubernetes_node=replica_name, gcs_image_uri=gcs_uri, additional_comment=prefixed_comment)
 
 
-def process_image(user_image_path: str, default_image_path: str,
-                  additional_comment: str, client: Any) -> Tuple[str, float, str, str]:
+def process_image(user_image_path: str, default_image_path: str, additional_comment: str,
+                  client: Any, inferred_image_prefix: str, bucket_name: str, table_reference: str,
+                  bigquery_client: Any, storage_client: Any) -> Tuple[str, float, str, str]:
     """
     Processes the selected or uploaded image, runs inference, and uploads data.
     
@@ -116,35 +112,34 @@ def process_image(user_image_path: str, default_image_path: str,
         default_image_path (str): The filename/filepath of the selected image from the dropdown.
         additional_comment (str): The user's input from the comment Textbox.
         client: Triton Inference Server client.
+        inferred_image_prefix (str): Prefix (folder) for GCS blob.
+        bucket_name (str): The GCS bucket name.
+        table_reference (str): The BigQuery table reference.
+        bigquery_client (Any): BigQuery client object.
+        storage_client (Any): Google Cloud Storage client object.
         
     Returns:
         tuple: (image_name, score, predicted_class, image_path)
     """
     image_name, image_path, image_to_process = determine_image_to_process(
         user_image_path=user_image_path,
-        default_image_path=default_image_path
-    )
+        default_image_path=default_image_path)
 
     # TODO IMPLEMENTATION WILL BE CHANGED TO LOAD ERROR IMAGE WITH MESSAGE
     if image_to_process is None:
         return image_name, 0.0, "Failed to load image", None
 
     # Run inference
-    predicted_class, score = perform_inference(
-        image=image_to_process,
-        client=client,
-        input_tensor='Input-Producer/Placeholders/Images/Placeholder_1:0',
-        output_tensor='Outputs/Softmax:0',
-        height=300,
-        width=300,
-        keep_ratio=True,
-        center=False
-    )
+    predicted_class, score = perform_inference(image=image_to_process,
+                                               client=client,
+                                               input_tensor='Input-Producer/Placeholders/Images/Placeholder_1:0',
+                                               output_tensor='Outputs/Softmax:0',
+                                               height=300, width=300, keep_ratio=True, center=False)
 
     upload_data_to_google_cloud(image_name=image_name, image_path=image_path,
                                 predicted_class=predicted_class, score=score, additional_comment=additional_comment,
-                                destination_file_prefix=INFERRED_IMAGE_PREFIX, bucket_name=BUCKET_NAME,
-                                table_reference=TABLE_REFERENCE, bigquery_client=bigquery_client,
+                                destination_file_prefix=inferred_image_prefix, bucket_name=bucket_name,
+                                table_reference=table_reference, bigquery_client=bigquery_client,
                                 storage_client=storage_client)
 
     return image_name, score, predicted_class, image_path
