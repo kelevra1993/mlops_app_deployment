@@ -9,8 +9,8 @@ from pydantic import BaseModel
 
 # Importing the required logic from our other modules
 from app.utilities.inference_utilities import get_inference_server_client, perform_inference
-from app.bigquery.client import insert_inference_data
-from app.gcs.client import upload_inferred_image
+from app.utilities.gcp_utilities import insert_inference_data_in_bigquery, upload_object, storage_client, bigquery_client
+from app.utilities.constants import BUCKET_NAME, INFERRED_IMAGE_PREFIX, TABLE_REFERENCE
 
 app = FastAPI(
     title="MLOps Classifier API",
@@ -74,14 +74,16 @@ async def run_inference(
         )
         
         # 4. Upload the saved image to Google Cloud Storage
-        gcs_blob_name = f"{inference_uuid}_{image.filename}"
-        gcs_uri = upload_inferred_image(temp_image_path, gcs_blob_name)
+        gcs_blob_name = f"{INFERRED_IMAGE_PREFIX}/{inference_uuid}_{image.filename}"
+        gcs_uri = upload_object(storage_client, BUCKET_NAME, temp_image_path, gcs_blob_name)
         
         # 5. Format the comment with the required prefix
         prefixed_comment = f"Called By API : {additional_comment}" if additional_comment else "Called By API : "
         
         # 6. Insert the inference metadata into BigQuery
-        insert_inference_data(
+        insert_inference_data_in_bigquery(
+            bigquery_client=bigquery_client,
+            table_reference=TABLE_REFERENCE,
             uuid_str=inference_uuid,
             predicted_class=predicted_class,
             probability=probability,

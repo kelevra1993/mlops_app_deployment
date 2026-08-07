@@ -5,7 +5,7 @@ import sys
 # Ensure the root project directory is in the Python path for imports to work correctly
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from gradio_functions import process_image, get_inference_data_images, fetch_recent_inferences
+from app.utilities.gradio_functions import process_image, get_inference_data_images, fetch_recent_inferences
 from app.triton_inference.triton_inference_functions import get_inference_server_client
 
 # Prepare images for the dropdown

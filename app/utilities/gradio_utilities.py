@@ -10,8 +10,8 @@ from app.utilities.inference_utilities import (
     get_images,
     perform_inference,
 )
-from app.bigquery.client import insert_inference_data, get_recent_inferences
-from app.gcs.client import upload_inferred_image
+from app.utilities.gcp_utilities import insert_inference_data_in_bigquery, get_recent_inferences, upload_object, storage_client, bigquery_client
+from app.utilities.constants import BUCKET_NAME, INFERRED_IMAGE_PREFIX, TABLE_REFERENCE, PREDICTED_INFROMATION_COLUMNS
 
 def get_inference_data_images():
     """
@@ -86,14 +86,16 @@ def process_image(uploaded_image, selected_inference_image, additional_comment, 
     inference_uuid = str(uuid.uuid4())
     
     # 3. Upload to Google Cloud Storage
-    gcs_blob_name = f"{inference_uuid}_{image_name}"
-    gcs_uri = upload_inferred_image(image_path, gcs_blob_name)
+    gcs_blob_name = f"{INFERRED_IMAGE_PREFIX}/{inference_uuid}_{image_name}"
+    gcs_uri = upload_object(storage_client, BUCKET_NAME, image_path, gcs_blob_name)
     
     # 4. Save to BigQuery with the required prefix
     prefixed_comment = f"Called By Gradio : {additional_comment}" if additional_comment else "Called By Gradio : "
     replica_name = os.getenv("REPLICA_NAME", "POD NOT IDENTIFIED")
     
-    insert_inference_data(
+    insert_inference_data_in_bigquery(
+        bigquery_client=bigquery_client,
+        table_reference=TABLE_REFERENCE,
         uuid_str=inference_uuid,
         predicted_class=predicted_class,
         probability=score,
@@ -108,7 +110,8 @@ def fetch_recent_inferences():
     """
     Fetches the 5 most recent inferences from BigQuery and formats them for the Gradio Dataframe.
     """
-    rows = get_recent_inferences(limit=5)
+    target_cols = ", ".join(PREDICTED_INFROMATION_COLUMNS)
+    rows = get_recent_inferences(bigquery_client=bigquery_client, table_reference=TABLE_REFERENCE, target_columns=target_cols, limit=5)
     
     # Gradio's gr.Dataframe expects a list of lists (rows of columns)
     formatted_rows = []
