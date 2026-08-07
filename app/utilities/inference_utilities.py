@@ -8,6 +8,8 @@ from os.path import join, dirname, basename
 
 import tritonclient.grpc as nvclient
 
+from app.utilities.constants import IMAGE_FILE_EXTENSIONS
+
 
 def preprocess(image: np.ndarray, height: int, width: int,
                keep_ratio: bool = False, center: bool = False) -> np.ndarray:
@@ -133,17 +135,17 @@ def get_images(path: str, basename: bool = False, sort: bool = False,
     if coherence:
         if basename:
             images = [file for file in os.listdir(path) if
-                      file.endswith(('.jpg', '.png', '.jpeg', '.tiff')) and os.stat(join(path, file)).st_size != 0]
+                      file.endswith(IMAGE_FILE_EXTENSIONS) and os.stat(join(path, file)).st_size != 0]
         else:
             images = [join(path, file) for file in os.listdir(path) if
-                      file.endswith(('.jpg', '.png', '.jpeg', '.tiff')) and os.stat(join(path, file)).st_size != 0]
+                      file.endswith(IMAGE_FILE_EXTENSIONS) and os.stat(join(path, file)).st_size != 0]
     else:
         if basename:
             images = [file for file in os.listdir(path) if
-                      file.endswith(('.jpg', '.png', '.jpeg', '.tiff'))]
+                      file.endswith(IMAGE_FILE_EXTENSIONS)]
         else:
             images = [join(path, file) for file in os.listdir(path) if
-                      file.endswith(('.jpg', '.png', '.jpeg', '.tiff'))]
+                      file.endswith(IMAGE_FILE_EXTENSIONS)]
     if mix:
         shuffle(images)
 
@@ -182,11 +184,7 @@ def perform_inference(image: np.ndarray, client: nvclient.InferenceServerClient,
     try:
         # Run the neural network inference
         prediction = run_neural_network_inference(
-            data=preprocessed_image,
-            client=client,
-            input_tensor=input_tensor,
-            output_tensor=output_tensor
-        )[0]
+            data=preprocessed_image, client=client, input_tensor=input_tensor, output_tensor=output_tensor)[0]
     except Exception as e:
         print(f"Error during inference: {e}")
         return "Error", 0.0
