@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+import sys
+import os
+import subprocess
+import re
+import argparse
+from typing import Optional
+
+# Ensure we can import from the app directory by adding the project root to sys.path
+# Since the script is in scripts/infrastructure/docker, we need to go up 3 levels
+project_root_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+sys.path.append(project_root_directory)
+
+from app.utilities.constants import PROJECT_ID
+
+
+def extract_region_from_terraform_variables(terraform_variables_file_path: str) -> str:
+    """
+    Extracts the GCP region from the Terraform variables file to dynamically configure Docker and Artifact Registry
+    for the downstream MLOps application deployment pipeline.
+    
+    Args:
+        terraform_variables_file_path (str): The absolute path to the gpu.auto.tfvars file containing the region.
+        
+    Returns:
+        str: The extracted GCP region string.
+    """
+    extracted_region: Optional[str] = None
+    try:
+        with open(terraform_variables_file_path, 'r') as terraform_variables_file:
+            for line_content in terraform_variables_file:
+                region_regex_match = re.match(r'^region\s*=\s*"([^"]+)"', line_content.strip())
+                if region_regex_match:
+                    extracted_region = region_regex_match.group(1)
+                    break
+    except FileNotFoundError:
+        print(f"❌ Error: Could not find the Terraform variables file at {terraform_variables_file_path}")
+        sys.exit(1)
+
+    if not extracted_region:
+        print("❌ Error: Could not extract the region from the Terraform variables file.")
+        sys.exit(1)
+
+    return extracted_region
+
+
+def main() -> None:
+    """
+    Automates the Docker build and push process for the Gradio frontend application within the MLOps pipeline.
+    It fetches the active GCP region from Terraform, configures Docker authentication, and pushes the container 
+    image to the correct Artifact Registry so it can be deployed by Kubernetes.
+    """
+    argument_parser = argparse.ArgumentParser(description="Automate Docker build and push for MLOps pipeline.")
+    argument_parser.add_argument("tag", help="The tag for the Docker image (e.g., v4, latest)")
+    parsed_arguments = argument_parser.parse_args()
+
+    terraform_variables_path = os.path.join(project_root_directory, 'infrastructure', 'terraform', 'gpu.auto.tfvars')
+
+    gcp_region = extract_region_from_terraform_variables(terraform_variables_file_path=terraform_variables_path)
+
+    print(f"✅ Found Region: {gcp_region}")
+    print(f"✅ Found Project ID: {PROJECT_ID}")
+    print(f"✅ Using Tag: {parsed_arguments.tag}")
+    exit()
+    artifact_registry_name = "machine-learning-artifacts-registry"
+    docker_image_name = f"gradio-app:{parsed_arguments.tag}"
+    artifact_registry_domain = f"{gcp_region}-docker.pkg.dev"
+    full_docker_image_path = f"{artifact_registry_domain}/{PROJECT_ID}/{artifact_registry_name}/{docker_image_name}"
+
+    print(f"🔐 Configuring Docker authentication for {artifact_registry_domain}...")
+    try:
+        subprocess.run(["gcloud", "auth", "configure-docker", artifact_registry_domain, "--quiet"], check=True)
+    except subprocess.CalledProcessError:
+        print("❌ Error configuring Docker authentication")
+        sys.exit(1)
+
+    print(f"🚀 Building and pushing the Docker image...")
+    print(f"📦 Image Path: {full_docker_image_path}")
+
+    try:
+        subprocess.run([
+            "docker", "buildx", "build",
+            "--platform", "linux/amd64",
+            "-f", "app/docker/Dockerfile",
+            "-t", full_docker_image_path,
+            "--push", "app/"
+        ], cwd=project_root_directory, check=True)
+    except subprocess.CalledProcessError:
+        print("❌ Error building and pushing the Docker image")
+        sys.exit(1)
+
+    print("🎉 Successfully built and pushed the image!")
+
+
+if __name__ == "__main__":
+    main()
