@@ -39,15 +39,20 @@ with gr.Blocks(title="Triton Inference App") as demo:
     gr.Markdown(f"**Replica:** {REPLICA_NAME}")
     gr.Markdown("# Image Classification Inference")
     gr.Markdown("Upload your own image or select one from the `inference_data` folder to run inference.")
-    
+
     # Definition Of First Row
     with gr.Row():
         # First cell contains :
         # - Area where the user image is uploaded
-        # -
+        # - Area where the user can select the default image
+        # - Area where the user can add additional information about the image
         with gr.Column():
+            # Keep in mind that the image will be stored in a temporary folder once it has been uploaded
             upload_input = gr.Image(type="filepath", label="Upload your own image")
-            dropdown_input = gr.Dropdown(choices=image_default_choices, label="Or Select From Default Inference Data")
+            # Setting the initial image as the default
+            dropdown_input = gr.Dropdown(choices=image_default_choices,
+                                         label="Or Select From Default Inference Data",
+                                         value=image_default_choices[0])
             comment_input = gr.Textbox(label="Additional Comment", placeholder="Enter any extra details here...")
             submit_button = gr.Button("Run Inference", variant="primary")
 
@@ -62,18 +67,17 @@ with gr.Blocks(title="Triton Inference App") as demo:
     submit_button.click(
         fn=lambda uploaded, selected, comment: process_image(
             user_image_path=uploaded,
-            default_image_path=selected,
+            default_image_name=selected,
             additional_comment=comment,
+            default_data_directory=default_data_directory,
             client=triton_client,
             inferred_image_prefix=INFERRED_IMAGE_PREFIX,
             bucket_name=BUCKET_NAME,
             table_reference=TABLE_REFERENCE,
             bigquery_client=bigquery_client,
-            storage_client=storage_client
-        ),
+            storage_client=storage_client),
         inputs=[upload_input, dropdown_input, comment_input],
-        outputs=[output_image_name, out_score, out_class, output_image]
-    )
+        outputs=[output_image_name, out_score, out_class, output_image])
 
     # Mutually exclusive inputs: clear the other when one is changed, but only if the changed input has a value
     upload_input.change(fn=lambda val: None if val is not None else gr.update(), inputs=upload_input,
@@ -93,11 +97,8 @@ with gr.Blocks(title="Triton Inference App") as demo:
         fn=lambda: fetch_recent_inferences(
             target_columns=PREDICTED_INFROMATION_COLUMNS,
             bigquery_client=bigquery_client,
-            table_reference=TABLE_REFERENCE
-        ),
-        inputs=[],
-        outputs=[recent_table]
-    )
+            table_reference=TABLE_REFERENCE), inputs=[], outputs=[recent_table])
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860)
+    # We added the default data directory to the allowed paths in order for gradio to find our files.
+    demo.launch(server_name="0.0.0.0", server_port=7860, allowed_paths=[str(default_data_directory)])

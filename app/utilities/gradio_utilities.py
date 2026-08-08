@@ -9,6 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 
 from app.utilities.inference_utilities import get_images, perform_inference
 from app.utilities.gcp_utilities import insert_inference_data_in_bigquery, get_recent_inferences, upload_object
+from app.utilities.os_utilities import print_green, print_blue, print_red, print_yellow, print_dictionary
 
 
 def get_default_inference_data_images(data_directory: str) -> List[str]:
@@ -29,8 +30,10 @@ def get_default_inference_data_images(data_directory: str) -> List[str]:
     return []
 
 
-def determine_image_to_process(user_image_path: str, default_image_path: str) -> Tuple[str, str, Any]:
+def determine_image_to_process(user_image_path: str, default_image_name: str,
+                               default_data_directory: str) -> Tuple[str, str, Any]:
     """
+    # todo to be updated
     Determines which image to process based on user upload or default selection.
     
     This function checks if the user has uploaded an image, which takes precedence.
@@ -51,9 +54,10 @@ def determine_image_to_process(user_image_path: str, default_image_path: str) ->
         image_name = os.path.basename(user_image_path)
         image_path = user_image_path
 
-    elif default_image_path is not None:
+    elif default_image_name is not None:
         # Otherwise, use the selected inference data image
-        image_name = os.path.basename(default_image_path)
+        default_image_path = os.path.join(default_data_directory, default_image_name)
+        image_name = default_image_name
         image_path = default_image_path
 
     image_to_process = cv2.imread(image_path)
@@ -105,10 +109,11 @@ def upload_data_to_google_cloud(image_name: str, image_path: str, predicted_clas
         kubernetes_node=replica_name, gcs_image_uri=gcs_uri, additional_comment=prefixed_comment)
 
 
-def process_image(user_image_path: str, default_image_path: str, additional_comment: str,
+def process_image(user_image_path: str, default_image_name: str, additional_comment: str, default_data_directory: str,
                   client: Any, inferred_image_prefix: str, bucket_name: str, table_reference: str,
                   bigquery_client: Any, storage_client: Any) -> Tuple[str, float, str, str]:
     """
+    # todo to be updated
     Processes the selected or uploaded image, runs inference, and uploads data.
     
     This function acts as the main handler for the Gradio interface. It determines which image
@@ -130,24 +135,28 @@ def process_image(user_image_path: str, default_image_path: str, additional_comm
     """
     image_name, image_path, image_to_process = determine_image_to_process(
         user_image_path=user_image_path,
-        default_image_path=default_image_path)
+        default_image_name=default_image_name,
+        default_data_directory=default_data_directory)
 
     # TODO IMPLEMENTATION WILL BE CHANGED TO LOAD ERROR IMAGE WITH MESSAGE
     if image_to_process is None:
         return image_name, 0.0, "Failed to load image", None
 
     # Run inference
+    print_blue(f"Running Inference On {image_name}")
     predicted_class, score = perform_inference(image=image_to_process,
                                                client=client,
                                                input_tensor='Input-Producer/Placeholders/Images/Placeholder_1:0',
                                                output_tensor='Outputs/Softmax:0',
                                                height=300, width=300, keep_ratio=True, center=False)
+    print_green(f"Inference Ran On {image_name} Completed !!!")
 
-    upload_data_to_google_cloud(image_name=image_name, image_path=image_path,
-                                predicted_class=predicted_class, score=score, additional_comment=additional_comment,
-                                destination_file_prefix=inferred_image_prefix, bucket_name=bucket_name,
-                                table_reference=table_reference, bigquery_client=bigquery_client,
-                                storage_client=storage_client)
+    # # Upload data to bigquery and google cloud storage.
+    # upload_data_to_google_cloud(image_name=image_name, image_path=image_path,
+    #                             predicted_class=predicted_class, score=score, additional_comment=additional_comment,
+    #                             destination_file_prefix=inferred_image_prefix, bucket_name=bucket_name,
+    #                             table_reference=table_reference, bigquery_client=bigquery_client,
+    #                             storage_client=storage_client)
 
     return image_name, score, predicted_class, image_path
 
