@@ -22,7 +22,7 @@ spec:
       containers:
       - name: api-container
         # Shared image with Gradio, but we pass APP_TYPE="api" to start FastAPI
-        image: europe-west3-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry/gradio-app:v4
+        image: REGION_PLACEHOLDER-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry/gradio-app:v4
         imagePullPolicy: Always
         ports:
         - containerPort: 8000

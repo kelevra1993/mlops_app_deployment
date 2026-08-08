@@ -10,10 +10,10 @@ from typing import List
 project_root_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 sys.path.append(project_root_directory)
 
-from app.utilities.os_utilities import print_green, print_yellow, print_blue, get_command_path, print_red
+from app.utilities.os_utilities import print_green, print_yellow, print_blue, get_command_path, print_red, extract_region_from_terraform_variables
 
 
-def apply_kubernetes_manifest(manifest_file_path: str) -> None:
+def apply_kubernetes_manifest(manifest_file_path: str, region: str) -> None:
     """
     Applies a specific Kubernetes YAML manifest to the active cluster. 
     This function forms part of the MLOps pipeline to deploy application workloads 
@@ -21,6 +21,7 @@ def apply_kubernetes_manifest(manifest_file_path: str) -> None:
     
     Args:
         manifest_file_path (str): The absolute or relative path to the Kubernetes YAML manifest file.
+        region (str): The GCP region to inject into the manifest (e.g., replacing REGION_PLACEHOLDER).
     """
     print_blue(f"Applying Kubernetes configuration: {manifest_file_path}", add_separators=True)
 
@@ -29,7 +30,17 @@ def apply_kubernetes_manifest(manifest_file_path: str) -> None:
         print_red(output="❌ Error: kubectl command not found.", add_separators=True)
         sys.exit(1)
 
-    kubectl_apply_command_list = [kubectl_path, "apply", "-f", manifest_file_path]
+    # Replace REGION_PLACEHOLDER with the actual region
+    with open(manifest_file_path, "r") as file:
+        manifest_content = file.read()
+    
+    manifest_content = manifest_content.replace("REGION_PLACEHOLDER", region)
+    
+    temp_manifest_path = manifest_file_path + ".tmp"
+    with open(temp_manifest_path, "w") as file:
+        file.write(manifest_content)
+
+    kubectl_apply_command_list = [kubectl_path, "apply", "-f", temp_manifest_path]
     kubectl_apply_command_string = " ".join(kubectl_apply_command_list)
 
     print_yellow(f"Running Command : {kubectl_apply_command_string}")
@@ -39,7 +50,10 @@ def apply_kubernetes_manifest(manifest_file_path: str) -> None:
         print_green(f"Successfully applied {os.path.basename(manifest_file_path)}!", add_separators=True)
     except subprocess.CalledProcessError:
         print(f"❌ Error applying Kubernetes manifest: {manifest_file_path}")
+        os.remove(temp_manifest_path)
         sys.exit(1)
+        
+    os.remove(temp_manifest_path)
 
 
 def main() -> None:
@@ -52,6 +66,9 @@ def main() -> None:
 
     from app.utilities.gcp_utilities import upload_directory
     from google.cloud import storage
+
+    terraform_variables_path = os.path.join(project_root_directory, 'infrastructure', 'terraform', 'gpu.auto.tfvars')
+    gcp_region = extract_region_from_terraform_variables(terraform_variables_file_path=terraform_variables_path)
 
     print_blue("Uploading models to GCS bucket before applying manifests...", add_separators=True)
     storage_client = storage.Client()
@@ -73,7 +90,6 @@ def main() -> None:
         "infrastructure/kubernetes/applications/gradio.yaml"]
 
     for manifest_path in kubernetes_manifest_paths:
-        print("")
         absolute_manifest_path = os.path.join(project_root_directory, manifest_path)
 
         # Verify the file exists before attempting to apply it
@@ -81,7 +97,7 @@ def main() -> None:
             print(f"❌ Error: Kubernetes manifest not found at {absolute_manifest_path}")
             sys.exit(1)
 
-        apply_kubernetes_manifest(manifest_file_path=manifest_path)
+        apply_kubernetes_manifest(manifest_file_path=absolute_manifest_path, region=gcp_region)
 
     print("\n🎉 All Kubernetes pods and services have been successfully deployed!\n")
 

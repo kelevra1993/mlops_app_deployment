@@ -11,37 +11,9 @@ project_root_directory = os.path.abspath(os.path.join(os.path.dirname(__file__),
 sys.path.append(project_root_directory)
 
 from app.utilities.constants import PROJECT_ID
-from app.utilities.os_utilities import print_green, print_yellow, print_blue, get_command_path, print_red
+from app.utilities.os_utilities import print_green, print_yellow, print_blue, get_command_path, print_red, extract_region_from_terraform_variables
 
 
-def extract_region_from_terraform_variables(terraform_variables_file_path: str) -> str:
-    """
-    Extracts the GCP region from the Terraform variables file to dynamically configure Docker and Artifact Registry
-    for the downstream MLOps application deployment pipeline.
-    
-    Args:
-        terraform_variables_file_path (str): The absolute path to the gpu.auto.tfvars file containing the region.
-        
-    Returns:
-        str: The extracted GCP region string.
-    """
-    extracted_region: Optional[str] = None
-    try:
-        with open(terraform_variables_file_path, 'r') as terraform_variables_file:
-            for line_content in terraform_variables_file:
-                region_regex_match = re.match(r'^region\s*=\s*"([^"]+)"', line_content.strip())
-                if region_regex_match:
-                    extracted_region = region_regex_match.group(1)
-                    break
-    except FileNotFoundError:
-        print(f"❌ Error: Could not find the Terraform variables file at {terraform_variables_file_path}")
-        sys.exit(1)
-
-    if not extracted_region:
-        print("❌ Error: Could not extract the region from the Terraform variables file.")
-        sys.exit(1)
-
-    return extracted_region
 
 
 def main() -> None:

@@ -238,7 +238,7 @@ resource "google_storage_bucket" "image_storage_bucket" {
 
 # 8. Create a BigQuery Dataset (The container for our tables)
 resource "google_bigquery_dataset" "prediction_dataset" {
-  dataset_id = "machine_learning_predictions_euw3"
+  dataset_id = "machine_learning_predictions"
   location   = var.region
 
   # Equivalent to force_destroy. Allows Terraform to delete this dataset

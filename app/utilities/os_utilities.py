@@ -1,6 +1,9 @@
 import json
 import shutil
-from typing import Dict, Any, Tuple, Optional
+import os
+import re
+import sys
+from typing import List, Dict, Any, Tuple, Optional
 
 
 def print_blue(output: str, add_separators: bool = False) -> None:
@@ -141,3 +144,35 @@ def get_command_path(command_name: str) -> Optional[str]:
     """
     command_path = shutil.which(cmd=command_name)
     return command_path
+
+
+def extract_region_from_terraform_variables(terraform_variables_file_path: str) -> str:
+    """
+    Extracts the GCP region from the Terraform variables file.
+
+    This function dynamically retrieves the region to configure Docker, Artifact Registry,
+    and Kubernetes manifests for the downstream MLOps application deployment pipeline.
+    
+    Args:
+        terraform_variables_file_path (str): The absolute path to the .tfvars file containing the region.
+        
+    Returns:
+        str: The extracted GCP region string.
+    """
+    extracted_region: Optional[str] = None
+    try:
+        with open(terraform_variables_file_path, 'r') as terraform_variables_file:
+            for line_content in terraform_variables_file:
+                region_regex_match = re.match(r'^region\s*=\s*"([^"]+)"', line_content.strip())
+                if region_regex_match:
+                    extracted_region = region_regex_match.group(1)
+                    break
+    except FileNotFoundError:
+        print(f"❌ Error: Could not find the Terraform variables file at {terraform_variables_file_path}")
+        sys.exit(1)
+
+    if not extracted_region:
+        print("❌ Error: Could not extract the region from the Terraform variables file.")
+        sys.exit(1)
+
+    return extracted_region

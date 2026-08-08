@@ -7,7 +7,7 @@ IMAGE_FILE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".tiff")
 PROJECT_ID = "ml-ops-classifier-app"
 
 # Big Query Constants
-DATASET_ID = "machine_learning_predictions_euw3"
+DATASET_ID = "machine_learning_predictions"
 TABLE_ID = "inference_history"
 TABLE_REFERENCE = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
 PREDICTED_INFROMATION_COLUMNS = ["uuid",
