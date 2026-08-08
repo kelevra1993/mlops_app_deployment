@@ -9,8 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxcb1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Set the working directory inside the container
-WORKDIR /app
+# Set the working directory to the parent of 'app' so that imports like `app.utilities` work
+WORKDIR /src/app
 
 # Copy the uv binary from the official Astral image
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -21,15 +21,20 @@ COPY pyproject.toml uv.lock ./
 # Install the dependencies strictly from the lockfile
 RUN uv sync --frozen --no-dev
 
-# Copy the rest of your application code
-COPY . .
+# Copy the application code into their respective directories to preserve structure
+COPY utilities/ ./utilities/
+COPY data/ ./data/
+COPY main/ ./main/
 
 # Expose the default Gradio port
 EXPOSE 7860
 
-# Force Gradio to listen on all network interfaces (required for Docker/Kubernetes)
+# Force Gradio to listen on all network interfaces
 ENV GRADIO_SERVER_NAME="0.0.0.0"
-ENV PYTHONPATH="/app"
+
+# Set PYTHONPATH to /src so Python recognizes 'app' as a top-level module
+ENV PYTHONPATH="/src"
 
 # Command to run the application dynamically based on the APP_TYPE env var
-CMD ["/bin/bash", "-c", "if [ \"$APP_TYPE\" = \"api\" ]; then /app/.venv/bin/uvicorn api.main:app --host 0.0.0.0 --port 8000; else /app/.venv/bin/python gradio/gradio_app.py; fi"]
+# Note: Uvicorn syntax is <module>:<variable>, so it is app.main.api_app:app
+CMD ["/bin/bash", "-c", "if [ \"$APP_TYPE\" = \"api\" ]; then /src/app/.venv/bin/uvicorn app.main.api_app:app --host 0.0.0.0 --port 8000; else /src/app/.venv/bin/python app/main/gradio_app.py; fi"]
