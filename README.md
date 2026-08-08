@@ -122,7 +122,7 @@ docker buildx inspect --bootstrap
 **2. Build and Push the Docker Image:**
 *Builds the image from the local `app` directory and pushes it directly to the Artifact Registry in one step.*
 ```bash
-docker buildx build --platform linux/amd64 -t europe-west3-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry/gradio-app:v3 --push ./app
+docker buildx build --platform linux/amd64 -f app/docker/Dockerfile -t europe-west3-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry/gradio-app:v3 --push ./app
 ```
 
 **3. Run the Container Interactively (Debugging):**
