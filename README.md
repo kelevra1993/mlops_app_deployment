@@ -125,6 +125,19 @@ docker buildx inspect --bootstrap
 docker buildx build --platform linux/amd64 -t europe-west3-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry/gradio-app:v3 --push ./app
 ```
 
+**3. Run the Container Interactively (Debugging):**
+*If you need to enter the container to test the internal structure or run a script manually without triggering the main application, you can override the default command with a bash shell:*
+```bash
+# First, build the image locally (e.g., tagging it as mlops-app)
+docker build -t mlops-app -f app/docker/Dockerfile app/
+
+# Run the container interactively to get a bash shell
+docker run -it --rm mlops-app /bin/bash
+
+# Alternatively, run a specific test script directly without the shell
+docker run --rm mlops-app /src/app/.venv/bin/python app/utilities/inference_utilities.py
+```
+
 ---
 
 ## 4. Kubernetes (kubectl)
