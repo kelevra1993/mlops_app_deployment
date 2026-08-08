@@ -1,11 +1,15 @@
 import os
 import subprocess
 import json
+import warnings
 from typing import List, Dict, Optional, Tuple
 from google.cloud import bigquery
 from google.cloud import storage
 from datetime import datetime
 from app.utilities.os_utilities import get_command_path
+
+# Suppress Google Auth UserWarnings regarding Application Default Credentials and Quota Projects
+warnings.filterwarnings("ignore", "Your application has authenticated using end user credentials")
 
 
 def upload_object(storage_client: storage.Client, bucket_name: str, local_file_path: str,
@@ -92,15 +96,15 @@ def insert_inference_data_in_bigquery(bigquery_client: bigquery.Client, table_re
 def get_recent_inferences(bigquery_client: bigquery.Client, table_reference: str,
                           target_columns: List[str], limit: int = 5) -> List[Dict]:
     """
-    todo target_columns parameter to be updated
     Retrieves the most recent inference records from BigQuery.
+    
     This function provides a mechanism for the Gradio frontend to query and display 
     the latest inference histories and model predictions to end users in real-time.
 
     Args:
         bigquery_client (bigquery.Client): The BigQuery client used to execute the query.
         table_reference (str): The BigQuery table reference to query (e.g., project.dataset.table).
-        provided as a comma-separated string.
+        target_columns (List[str]): A list of column names to retrieve from the BigQuery table.
         limit (int): The maximum number of records to retrieve. Default is 5.
 
     Returns:
@@ -131,7 +135,11 @@ def get_recent_inferences(bigquery_client: bigquery.Client, table_reference: str
 
 def check_existing_reservation(reservation_name: str, project_id: str) -> Optional[Tuple[str, str, str]]:
     """
-    Checks if a GCP compute reservation already exists by name.
+    Checks if a GCP capacity reservation with the given name already exists across all zones.
+    
+    This function forms part of the MLOps pipeline to ensure we don't unnecessarily
+    re-create reservations or search for capacity if a valid reservation is already
+    active and available for the infrastructure deployment.
     
     Args:
         reservation_name (str): The name of the reservation to search for.
@@ -158,7 +166,8 @@ def check_existing_reservation(reservation_name: str, project_id: str) -> Option
 
         if reservations and len(reservations) > 0:
             reservation = reservations[0]
-            # Zone is returned as a full URL, e.g., https://www.googleapis.com/compute/v1/projects/project/zones/europe-west3-a
+            # Zone is returned as a full URL,
+            # e.g., https://www.googleapis.com/compute/v1/projects/project/zones/europe-west3-a
             zone = reservation.get("zone", "").split("/")[-1]
             specific_reservation = reservation.get("specificReservation", {})
             instance_properties = specific_reservation.get("instanceProperties", {})
@@ -181,7 +190,7 @@ def check_existing_reservation(reservation_name: str, project_id: str) -> Option
 
 
 def upload_directory(storage_client: storage.Client, bucket_name: str,
-                     local_directory_path: str, destination_prefix: str) -> None:
+                     local_directory_path: str, destination_prefix: str, verbose: bool = False) -> None:
     """
     Uploads an entire local directory to Google Cloud Storage.
 
@@ -213,6 +222,7 @@ def upload_directory(storage_client: storage.Client, bucket_name: str,
             blob = bucket.blob(destination_file_name)
             try:
                 blob.upload_from_filename(local_file_path)
-                print(f"Successfully uploaded {local_file_path} to gs://{bucket_name}/{destination_file_name}")
+                if verbose:
+                    print(f"Successfully uploaded {local_file_path} to gs://{bucket_name}/{destination_file_name}")
             except Exception as e:
                 print(f"Error uploading {local_file_path} to GCS: {e}")

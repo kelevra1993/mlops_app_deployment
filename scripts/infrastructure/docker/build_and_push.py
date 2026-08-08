@@ -11,9 +11,8 @@ project_root_directory = os.path.abspath(os.path.join(os.path.dirname(__file__),
 sys.path.append(project_root_directory)
 
 from app.utilities.constants import PROJECT_ID
-from app.utilities.os_utilities import print_green, print_yellow, print_blue, get_command_path, print_red, extract_region_from_terraform_variables
-
-
+from app.utilities.os_utilities import (print_green, print_yellow, print_blue, get_command_path, print_red,
+                                        extract_region_from_terraform_variables)
 
 
 def main() -> None:
@@ -37,7 +36,8 @@ def main() -> None:
                                  help="The tag for the Docker image (e.g., v4, latest)")
     parsed_arguments = argument_parser.parse_args()
 
-    terraform_variables_path = os.path.join(project_root_directory, 'infrastructure', 'terraform', 'location.auto.tfvars')
+    terraform_variables_path = os.path.join(project_root_directory, 'infrastructure', 'terraform',
+                                            'location.auto.tfvars')
 
     # Get the gcp region which was decided based on the available gpus
     gcp_region = extract_region_from_terraform_variables(terraform_variables_file_path=terraform_variables_path)
@@ -61,7 +61,8 @@ def main() -> None:
 
     print(f"🔐 Configuring Docker authentication for {artifact_registry_domain}...")
     try:
-        docker_configuration_command_list = [gcloud_path, "auth", "configure-docker", artifact_registry_domain, "--quiet"]
+        docker_configuration_command_list = [gcloud_path, "auth", "configure-docker", artifact_registry_domain,
+                                             "--quiet"]
         docker_configuration_command = " ".join(docker_configuration_command_list)
         print_yellow(f"Running Command : {docker_configuration_command}", add_separators=True)
         subprocess.run(docker_configuration_command_list, check=True,
