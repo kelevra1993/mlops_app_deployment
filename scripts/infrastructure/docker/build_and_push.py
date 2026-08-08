@@ -53,20 +53,18 @@ def main() -> None:
     Usage Example:
         python scripts/infrastructure/docker/build_and_push.py v4
     """
-    argument_parser = argparse.ArgumentParser(
-        description=(
-            "Automate Docker build and push for MLOps pipeline.\n\n"
-            "Example Of How To Run The Script:\n"
-            "  - python scripts/infrastructure/docker/build_and_push.py v4\n"
-            "  - python scripts/infrastructure/docker/build_and_push.py latest"
-        ),
-        formatter_class=argparse.RawTextHelpFormatter
-    )
+    argument_parser = argparse.ArgumentParser(description=(
+        "Automate Docker build and push for MLOps pipeline.\n\n"
+        "Example Of How To Run The Script:\n"
+        "  - python scripts/infrastructure/docker/build_and_push.py v4\n"
+        "  - python scripts/infrastructure/docker/build_and_push.py latest"
+    ), formatter_class=argparse.RawTextHelpFormatter)
     argument_parser.add_argument("tag", help="The tag for the Docker image (e.g., v4, latest)")
     parsed_arguments = argument_parser.parse_args()
 
     terraform_variables_path = os.path.join(project_root_directory, 'infrastructure', 'terraform', 'gpu.auto.tfvars')
 
+    # Get the gcp region which was decided based on the available gpus
     gcp_region = extract_region_from_terraform_variables(terraform_variables_file_path=terraform_variables_path)
 
     print_green("Successfully Retrieved Environment Variables", add_separators=True)
@@ -74,13 +72,14 @@ def main() -> None:
     print(f" ✅ Found Project ID: {PROJECT_ID}")
     print(f" ✅ Using Tag: {parsed_arguments.tag}\n")
 
+    # Get artifacts registry name as well as the image_name, it's tag and also the full docker image path.
     artifact_registry_name = "machine-learning-artifacts-registry"
     docker_image_name = f"gradio-app:{parsed_arguments.tag}"
     artifact_registry_domain = f"{gcp_region}-docker.pkg.dev"
     full_docker_image_path = f"{artifact_registry_domain}/{PROJECT_ID}/{artifact_registry_name}/{docker_image_name}"
 
+    # Docker needs to have access to this artifact registry therefore some configuration is needed
     print(f"🔐 Configuring Docker authentication for {artifact_registry_domain}...")
-
     try:
         docker_configuration_command_list = ["gcloud", "auth", "configure-docker", artifact_registry_domain, "--quiet"]
         docker_configuration_command = " ".join(docker_configuration_command_list)
@@ -91,6 +90,7 @@ def main() -> None:
         print("❌ Error configuring Docker authentication")
         sys.exit(1)
 
+    # Build and push the image while keeping in mind that the platfrom should be linux/amd64
     print(f"\n🚀 Building and pushing the Docker image...")
     print(f"📦 Image Path: {full_docker_image_path}")
     try:
