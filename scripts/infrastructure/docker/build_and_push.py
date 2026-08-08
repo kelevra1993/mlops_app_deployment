@@ -108,7 +108,7 @@ def main() -> None:
         subprocess.run(docker_build_and_push_command_list, cwd=project_root_directory, check=True)
         link_to_docker_image = (f"https://console.cloud.google.com/artifacts/docker/"
                                 f"{PROJECT_ID}/{gcp_region}/{artifact_registry_name}?authuser=1&project={PROJECT_ID}")
-        print_green(f"Image Pushed Successfully To {link_to_docker_image} !!!", add_separators=True)
+        print_green(f"Image Pushed Successfully To : {link_to_docker_image} !!!", add_separators=True)
 
     except subprocess.CalledProcessError:
         print("❌ Error building and pushing the Docker image")
