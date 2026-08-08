@@ -4,13 +4,11 @@
 variable "region" {
   description = "The region to deploy resources into"
   type        = string
-  default     = "europe-west4"
 }
 
 variable "zone" {
   description = "The zone to deploy resources into"
   type        = string
-  default     = "europe-west4-c"
 }
 
 variable "reservation_name" {

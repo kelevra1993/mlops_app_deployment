@@ -67,7 +67,7 @@ def main() -> None:
     from app.utilities.gcp_utilities import upload_directory
     from google.cloud import storage
 
-    terraform_variables_path = os.path.join(project_root_directory, 'infrastructure', 'terraform', 'gpu.auto.tfvars')
+    terraform_variables_path = os.path.join(project_root_directory, 'infrastructure', 'terraform', 'location.auto.tfvars')
     gcp_region = extract_region_from_terraform_variables(terraform_variables_file_path=terraform_variables_path)
 
     print_blue("Uploading models to GCS bucket before applying manifests...", add_separators=True)

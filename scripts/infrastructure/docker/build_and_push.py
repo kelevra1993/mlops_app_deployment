@@ -37,7 +37,7 @@ def main() -> None:
                                  help="The tag for the Docker image (e.g., v4, latest)")
     parsed_arguments = argument_parser.parse_args()
 
-    terraform_variables_path = os.path.join(project_root_directory, 'infrastructure', 'terraform', 'gpu.auto.tfvars')
+    terraform_variables_path = os.path.join(project_root_directory, 'infrastructure', 'terraform', 'location.auto.tfvars')
 
     # Get the gcp region which was decided based on the available gpus
     gcp_region = extract_region_from_terraform_variables(terraform_variables_file_path=terraform_variables_path)
