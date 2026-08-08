@@ -13,6 +13,9 @@ terraform {
 
 provider "google" {
   project = "ml-ops-classifier-app"
-  region  = "europe-west1"
-  zone    = "europe-west1-b"
+
+  # These values are pulled from the variables defined at the top of main.tf
+  # using the "var." namespace.
+  region = var.region
+  zone   = var.zone
 }
