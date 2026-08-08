@@ -1,4 +1,4 @@
-zone = "us-central1-c"
+zone = "us-central1-a"
 region = "us-central1"
 reservation_name = "machine-learning-gpu-reservation"
 machine_type = "g2-standard-4"

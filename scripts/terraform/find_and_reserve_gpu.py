@@ -24,6 +24,7 @@ def reserve_gpu(zone: str, reservation_name: str, machine_type: str, accelerator
         f"--accelerator=type={accelerator_type},count=1",
         f"--zone={zone}",
         "--vm-count=1",
+        "--require-specific-reservation",
         "--quiet"
     ]
     
