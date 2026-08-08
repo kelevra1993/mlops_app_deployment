@@ -1,0 +1,5 @@
+zone = "us-central1-c"
+region = "us-central1"
+reservation_name = "machine-learning-gpu-reservation"
+machine_type = "g2-standard-4"
+accelerator_type = "nvidia-l4"
