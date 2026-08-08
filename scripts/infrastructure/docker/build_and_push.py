@@ -11,7 +11,7 @@ project_root_directory = os.path.abspath(os.path.join(os.path.dirname(__file__),
 sys.path.append(project_root_directory)
 
 from app.utilities.constants import PROJECT_ID
-from app.utilities.os_utilities import print_green, print_yellow, print_blue
+from app.utilities.os_utilities import print_green, print_yellow, print_blue, get_command_path, print_red
 
 
 def extract_region_from_terraform_variables(terraform_variables_file_path: str) -> str:
@@ -82,9 +82,14 @@ def main() -> None:
     full_docker_image_path = f"{artifact_registry_domain}/{PROJECT_ID}/{artifact_registry_name}/{docker_image_name}"
 
     # Docker needs to have access to this artifact registry therefore some configuration is needed
+    gcloud_path = get_command_path(command_name="gcloud")
+    if gcloud_path is None:
+        print_red(output="❌ Error: gcloud command not found.", add_separators=True)
+        sys.exit(1)
+
     print(f"🔐 Configuring Docker authentication for {artifact_registry_domain}...")
     try:
-        docker_configuration_command_list = ["gcloud", "auth", "configure-docker", artifact_registry_domain, "--quiet"]
+        docker_configuration_command_list = [gcloud_path, "auth", "configure-docker", artifact_registry_domain, "--quiet"]
         docker_configuration_command = " ".join(docker_configuration_command_list)
         print_yellow(f"Running Command : {docker_configuration_command}", add_separators=True)
         subprocess.run(docker_configuration_command_list, check=True,
@@ -95,11 +100,16 @@ def main() -> None:
         sys.exit(1)
 
     # Build and push the image while keeping in mind that the platfrom should be linux/amd64
+    docker_path = get_command_path(command_name="docker")
+    if docker_path is None:
+        print_red(output="❌ Error: docker command not found.", add_separators=True)
+        sys.exit(1)
+
     print(f"\n🚀 Building and pushing the Docker image...")
     print(f"📦 Image Path: {full_docker_image_path}")
     try:
         docker_build_and_push_command_list = [
-            "docker", "buildx", "build",
+            docker_path, "buildx", "build",
             "--platform", "linux/amd64",
             "-f", "app/docker/Dockerfile",
             "-t", full_docker_image_path,

@@ -10,7 +10,7 @@ from typing import List
 project_root_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 sys.path.append(project_root_directory)
 
-from app.utilities.os_utilities import print_green, print_yellow, print_blue
+from app.utilities.os_utilities import print_green, print_yellow, print_blue, get_command_path, print_red
 
 
 def apply_kubernetes_manifest(manifest_file_path: str) -> None:
@@ -24,9 +24,12 @@ def apply_kubernetes_manifest(manifest_file_path: str) -> None:
     """
     print_blue(f"Applying Kubernetes configuration: {manifest_file_path}", add_separators=True)
 
-    kubectl = get_command_path(command="kubectl")
+    kubectl_path = get_command_path(command_name="kubectl")
+    if kubectl_path is None:
+        print_red(output="❌ Error: kubectl command not found.", add_separators=True)
+        sys.exit(1)
 
-    kubectl_apply_command_list = [kubectl, "apply", "-f", manifest_file_path]
+    kubectl_apply_command_list = [kubectl_path, "apply", "-f", manifest_file_path]
     kubectl_apply_command_string = " ".join(kubectl_apply_command_list)
 
     print_yellow(f"Running Command : {kubectl_apply_command_string}")

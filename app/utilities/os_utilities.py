@@ -1,5 +1,6 @@
 import json
-from typing import Dict, Any, Tuple
+import shutil
+from typing import Dict, Any, Tuple, Optional
 
 
 def print_blue(output: str, add_separators: bool = False) -> None:
@@ -122,3 +123,21 @@ def print_dictionary(dictionary: Dict[str, Any], indent: int = 4) -> None:
         indent (int): The number of spaces to use for indentation.
     """
     print(json.dumps(dictionary, indent=indent))
+
+
+def get_command_path(command_name: str) -> Optional[str]:
+    """
+    Finds the absolute path of a system command to be used within the MLOps pipeline scripts.
+
+    This utility is used across deployment and infrastructure scripts (like Docker builds
+    and Kubernetes deployments) to ensure that required system commands exist before
+    execution, thereby preventing runtime failures in the pipeline.
+
+    Args:
+        command_name (str): The name of the command to locate (e.g., 'kubectl', 'docker').
+
+    Returns:
+        Optional[str]: The absolute path to the command if found, otherwise None.
+    """
+    command_path = shutil.which(cmd=command_name)
+    return command_path
