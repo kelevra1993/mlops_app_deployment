@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import sys
 import os
 import subprocess
@@ -12,6 +11,7 @@ project_root_directory = os.path.abspath(os.path.join(os.path.dirname(__file__),
 sys.path.append(project_root_directory)
 
 from app.utilities.constants import PROJECT_ID
+from app.utilities.os_utilities import print_green, print_yellow
 
 
 def extract_region_from_terraform_variables(terraform_variables_file_path: str) -> str:
@@ -49,8 +49,19 @@ def main() -> None:
     Automates the Docker build and push process for the Gradio frontend application within the MLOps pipeline.
     It fetches the active GCP region from Terraform, configures Docker authentication, and pushes the container 
     image to the correct Artifact Registry so it can be deployed by Kubernetes.
+    
+    Usage Example:
+        python scripts/infrastructure/docker/build_and_push.py v4
     """
-    argument_parser = argparse.ArgumentParser(description="Automate Docker build and push for MLOps pipeline.")
+    argument_parser = argparse.ArgumentParser(
+        description=(
+            "Automate Docker build and push for MLOps pipeline.\n\n"
+            "Example Of How To Run The Script:\n"
+            "  - python scripts/infrastructure/docker/build_and_push.py v4\n"
+            "  - python scripts/infrastructure/docker/build_and_push.py latest"
+        ),
+        formatter_class=argparse.RawTextHelpFormatter
+    )
     argument_parser.add_argument("tag", help="The tag for the Docker image (e.g., v4, latest)")
     parsed_arguments = argument_parser.parse_args()
 
@@ -58,33 +69,46 @@ def main() -> None:
 
     gcp_region = extract_region_from_terraform_variables(terraform_variables_file_path=terraform_variables_path)
 
-    print(f"✅ Found Region: {gcp_region}")
-    print(f"✅ Found Project ID: {PROJECT_ID}")
-    print(f"✅ Using Tag: {parsed_arguments.tag}")
-    exit()
+    print_green("Successfully Retrieved Environment Variables", add_separators=True)
+    print(f" ✅ Found Region: {gcp_region}")
+    print(f" ✅ Found Project ID: {PROJECT_ID}")
+    print(f" ✅ Using Tag: {parsed_arguments.tag}\n")
+
     artifact_registry_name = "machine-learning-artifacts-registry"
     docker_image_name = f"gradio-app:{parsed_arguments.tag}"
     artifact_registry_domain = f"{gcp_region}-docker.pkg.dev"
     full_docker_image_path = f"{artifact_registry_domain}/{PROJECT_ID}/{artifact_registry_name}/{docker_image_name}"
 
     print(f"🔐 Configuring Docker authentication for {artifact_registry_domain}...")
+
     try:
-        subprocess.run(["gcloud", "auth", "configure-docker", artifact_registry_domain, "--quiet"], check=True)
+        docker_configuration_command_list = ["gcloud", "auth", "configure-docker", artifact_registry_domain, "--quiet"]
+        docker_configuration_command = " ".join(docker_configuration_command_list)
+        print_yellow(f"Running Command : {docker_configuration_command}", add_separators=True)
+        subprocess.run(docker_configuration_command_list, check=True, )
+        print_green(f"Docker Configured Successfuly !!!", add_separators=True)
     except subprocess.CalledProcessError:
         print("❌ Error configuring Docker authentication")
         sys.exit(1)
 
-    print(f"🚀 Building and pushing the Docker image...")
+    print(f"\n🚀 Building and pushing the Docker image...")
     print(f"📦 Image Path: {full_docker_image_path}")
-
     try:
-        subprocess.run([
+        docker_build_and_push_command_list = [
             "docker", "buildx", "build",
             "--platform", "linux/amd64",
             "-f", "app/docker/Dockerfile",
             "-t", full_docker_image_path,
-            "--push", "app/"
-        ], cwd=project_root_directory, check=True)
+            "app/",
+            "--push"]
+        docker_build_and_push_command = " ".join(docker_build_and_push_command_list)
+        print_yellow(f"Running Command : {docker_build_and_push_command}", add_separators=True)
+
+        subprocess.run(docker_build_and_push_command_list, cwd=project_root_directory, check=True)
+        link_to_docker_image = (f"https://console.cloud.google.com/artifacts/docker/"
+                                f"{PROJECT_ID}/{gcp_region}/{artifact_registry_name}?authuser=1&project={PROJECT_ID}")
+        print_green(f"Image Pushed Successfully  To {link_to_docker_image} !!!", add_separators=True)
+
     except subprocess.CalledProcessError:
         print("❌ Error building and pushing the Docker image")
         sys.exit(1)
