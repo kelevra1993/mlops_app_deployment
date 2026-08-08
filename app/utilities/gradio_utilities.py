@@ -33,18 +33,19 @@ def get_default_inference_data_images(data_directory: str) -> List[str]:
 def determine_image_to_process(user_image_path: str, default_image_name: str,
                                default_data_directory: str) -> Tuple[str, str, Any]:
     """
-    # todo to be updated
-    Determines which image to process based on user upload or default selection.
+    Determines which image to process for inference within the Gradio frontend based on user input.
     
-    This function checks if the user has uploaded an image, which takes precedence.
-    If not, it falls back to the default selected image. It reads the image using OpenCV.
+    This function acts as a preprocessing step in the MLOps pipeline, giving precedence to user-uploaded 
+    images. If no user image is provided, it falls back to a default test image to ensure the Triton 
+    inference backend always receives a valid OpenCV image array.
     
     Args:
         user_image_path (str): The file path of the uploaded image.
-        default_image_path (str): The file path of the default selected image.
+        default_image_name (str): The filename of the default selected image.
+        default_data_directory (str): The directory containing the default images.
         
     Returns:
-        tuple: (image_name, image_path, image_to_process)
+        Tuple[str, str, Any]: A tuple containing the resolved image name, image path, and the OpenCV image array to process.
     """
     image_name = "Unknown"
     image_path = None
@@ -113,25 +114,26 @@ def process_image(user_image_path: str, default_image_name: str, additional_comm
                   client: Any, inferred_image_prefix: str, bucket_name: str, table_reference: str,
                   bigquery_client: Any, storage_client: Any) -> Tuple[str, float, str, str]:
     """
-    # todo to be updated
-    Processes the selected or uploaded image, runs inference, and uploads data.
+    Acts as the main handler for the Gradio frontend, orchestrating the end-to-end inference request.
     
-    This function acts as the main handler for the Gradio interface. It determines which image
-    to use, runs inference via Triton, and stores the results in GCS and BigQuery.
+    This function coordinates the MLOps pipeline for a single user request by selecting the appropriate image, 
+    running model inference via the Triton backend, and storing the prediction results in Google Cloud Storage 
+    and BigQuery for downstream analytics and monitoring.
     
     Args:
-        user_image_path (str): Filepath to the uploaded image.
-        default_image_path (str): The filename/filepath of the selected image from the dropdown.
+        user_image_path (str): Filepath to the user-uploaded image.
+        default_image_name (str): The filename of the selected default test image.
         additional_comment (str): The user's input from the comment Textbox.
-        client: Triton Inference Server client.
-        inferred_image_prefix (str): Prefix (folder) for GCS blob.
-        bucket_name (str): The GCS bucket name.
-        table_reference (str): The BigQuery table reference.
-        bigquery_client (Any): BigQuery client object.
-        storage_client (Any): Google Cloud Storage client object.
+        default_data_directory (str): The directory containing the default test images.
+        client (Any): The Triton Inference Server client object.
+        inferred_image_prefix (str): Prefix (folder) in GCS for the uploaded image blob.
+        bucket_name (str): The GCS bucket name for storing the image.
+        table_reference (str): The BigQuery table reference for storing inference metadata.
+        bigquery_client (Any): The BigQuery client object.
+        storage_client (Any): The Google Cloud Storage client object.
         
     Returns:
-        tuple: (image_name, score, predicted_class, image_path)
+        Tuple[str, float, str, str]: A tuple containing the image name, confidence score, predicted class, and local image path.
     """
     image_name, image_path, image_to_process = determine_image_to_process(
         user_image_path=user_image_path,
@@ -151,12 +153,12 @@ def process_image(user_image_path: str, default_image_name: str, additional_comm
                                                height=300, width=300, keep_ratio=True, center=False)
     print_green(f"Inference Ran On {image_name} Completed !!!")
 
-    # # Upload data to bigquery and google cloud storage.
-    # upload_data_to_google_cloud(image_name=image_name, image_path=image_path,
-    #                             predicted_class=predicted_class, score=score, additional_comment=additional_comment,
-    #                             destination_file_prefix=inferred_image_prefix, bucket_name=bucket_name,
-    #                             table_reference=table_reference, bigquery_client=bigquery_client,
-    #                             storage_client=storage_client)
+    # Upload data to bigquery and google cloud storage.
+    upload_data_to_google_cloud(image_name=image_name, image_path=image_path,
+                                predicted_class=predicted_class, score=score, additional_comment=additional_comment,
+                                destination_file_prefix=inferred_image_prefix, bucket_name=bucket_name,
+                                table_reference=table_reference, bigquery_client=bigquery_client,
+                                storage_client=storage_client)
 
     return image_name, score, predicted_class, image_path
 
