@@ -51,15 +51,18 @@ def main() -> None:
     image to the correct Artifact Registry so it can be deployed by Kubernetes.
     
     Usage Example:
-        python scripts/infrastructure/docker/build_and_push.py v4
+        python scripts/infrastructure/docker/build_and_push.py --tag v4
     """
     argument_parser = argparse.ArgumentParser(description=(
         "Automate Docker build and push for MLOps pipeline.\n\n"
         "Example Of How To Run The Script:\n"
-        "  - python scripts/infrastructure/docker/build_and_push.py v4\n"
-        "  - python scripts/infrastructure/docker/build_and_push.py latest"
+        "  - python scripts/infrastructure/docker/build_and_push.py --tag v4\n"
+        "  - python scripts/infrastructure/docker/build_and_push.py"
     ), formatter_class=argparse.RawTextHelpFormatter)
-    argument_parser.add_argument("tag", help="The tag for the Docker image (e.g., v4, latest)")
+    argument_parser.add_argument("--tag",
+                                 required=False,
+                                 default="latest",
+                                 help="The tag for the Docker image (e.g., v4, latest)")
     parsed_arguments = argument_parser.parse_args()
 
     terraform_variables_path = os.path.join(project_root_directory, 'infrastructure', 'terraform', 'gpu.auto.tfvars')
@@ -105,7 +108,7 @@ def main() -> None:
         docker_build_and_push_command = " ".join(docker_build_and_push_command_list)
         print_yellow(f"Running Command : {docker_build_and_push_command}", add_separators=True)
 
-        # subprocess.run(docker_build_and_push_command_list, cwd=project_root_directory, check=True)
+        subprocess.run(docker_build_and_push_command_list, cwd=project_root_directory, check=True)
         link_to_docker_image = (f"https://console.cloud.google.com/artifacts/docker/"
                                 f"{PROJECT_ID}/{gcp_region}/{artifact_registry_name}?authuser=1&project={PROJECT_ID}")
         print_green(f"Image Pushed Successfully To : {link_to_docker_image} !!!", add_separators=True)
