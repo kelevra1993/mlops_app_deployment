@@ -3,7 +3,6 @@ import uuid
 import cv2
 import sys
 import tempfile
-import numpy as np
 
 from google.cloud import bigquery, storage
 from fastapi import FastAPI, UploadFile, File, Form
@@ -63,17 +62,17 @@ async def run_inference(image: UploadFile = File(...), additional_comment: str =
 
     # Create a temporary file to save the uploaded image
     # This is required because our GCS upload and cv2 functions expect a local filepath
-    temp_image_path = os.path.join(tempfile.gettempdir(), f"{inference_uuid}_{image.filename}")
+    temporary_image_path = os.path.join(tempfile.gettempdir(), f"{inference_uuid}_{image.filename}")
 
     try:
         # 1. Save the uploaded file to disk
         contents = await image.read()
-        with open(temp_image_path, "wb") as f:
+        with open(temporary_image_path, "wb") as f:
             f.write(contents)
 
         # 2. Read the image using OpenCV for Triton preprocessing
         # cv2.imread expects a valid filepath and returns a numpy array
-        image = cv2.imread(temp_image_path)
+        image = cv2.imread(temporary_image_path)
         if image is None:
             return {"message": "Invalid image format.", "uuid": inference_uuid, "predicted_class": "Error",
                     "probability": 0.0, "gcs_uri": ""}
@@ -88,39 +87,30 @@ async def run_inference(image: UploadFile = File(...), additional_comment: str =
 
         # 4. Upload the saved image to Google Cloud Storage
         gcs_blob_name = f"{INFERRED_IMAGE_PREFIX}/{inference_uuid}_{image.filename}"
-        gcs_uri = upload_object(storage_client, BUCKET_NAME, temp_image_path, gcs_blob_name)
+        gcs_uri = upload_object(storage_client, BUCKET_NAME, temporary_image_path, gcs_blob_name)
 
         # 5. Format the comment with the required prefix
         prefixed_comment = f"Called By API : {additional_comment}" if additional_comment else "Called By API : "
 
         # 6. Insert the inference metadata into BigQuery
         insert_inference_data_in_bigquery(
-            bigquery_client=bigquery_client,
-            table_reference=TABLE_REFERENCE,
-            uuid_str=inference_uuid,
-            predicted_class=predicted_class,
-            probability=probability,
-            kubernetes_node=REPLICA_NAME,
-            gcs_image_uri=gcs_uri,
-            additional_comment=prefixed_comment)
+            bigquery_client=bigquery_client, table_reference=TABLE_REFERENCE,
+            uuid_str=inference_uuid, predicted_class=predicted_class,
+            probability=probability, kubernetes_node=REPLICA_NAME,
+            gcs_image_uri=gcs_uri, additional_comment=prefixed_comment)
 
         # Return a structured JSON response to the client
         return InferenceResponse(
-            uuid=inference_uuid,
-            predicted_class=predicted_class,
-            probability=probability,
-            gcs_uri=gcs_uri,
+            uuid=inference_uuid, predicted_class=predicted_class,
+            probability=probability, gcs_uri=gcs_uri,
             message="Inference completed successfully.")
 
     except Exception as e:
         print(f"Error during API inference: {e}")
         return InferenceResponse(
-            uuid=inference_uuid,
-            predicted_class="Error",
-            probability=0.0,
-            gcs_uri="",
-            message=str(e))
+            uuid=inference_uuid, predicted_class="Error",
+            probability=0.0, gcs_uri="", message=str(e))
     finally:
         # Always clean up the temporary file to prevent disk space leaks
-        if os.path.exists(temp_image_path):
-            os.remove(temp_image_path)
+        if os.path.exists(temporary_image_path):
+            os.remove(temporary_image_path)
