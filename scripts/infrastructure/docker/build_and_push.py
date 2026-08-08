@@ -11,7 +11,7 @@ project_root_directory = os.path.abspath(os.path.join(os.path.dirname(__file__),
 sys.path.append(project_root_directory)
 
 from app.utilities.constants import PROJECT_ID
-from app.utilities.os_utilities import print_green, print_yellow
+from app.utilities.os_utilities import print_green, print_yellow, print_blue
 
 
 def extract_region_from_terraform_variables(terraform_variables_file_path: str) -> str:
@@ -105,10 +105,12 @@ def main() -> None:
         docker_build_and_push_command = " ".join(docker_build_and_push_command_list)
         print_yellow(f"Running Command : {docker_build_and_push_command}", add_separators=True)
 
-        subprocess.run(docker_build_and_push_command_list, cwd=project_root_directory, check=True)
+        # subprocess.run(docker_build_and_push_command_list, cwd=project_root_directory, check=True)
         link_to_docker_image = (f"https://console.cloud.google.com/artifacts/docker/"
                                 f"{PROJECT_ID}/{gcp_region}/{artifact_registry_name}?authuser=1&project={PROJECT_ID}")
         print_green(f"Image Pushed Successfully To : {link_to_docker_image} !!!", add_separators=True)
+        print_blue(f"You Can Test The Image By Running : \n"
+                   f" - docker run -it --rm {full_docker_image_path} /bin/bash")
 
     except subprocess.CalledProcessError:
         print("❌ Error building and pushing the Docker image")
