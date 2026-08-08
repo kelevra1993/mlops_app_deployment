@@ -50,6 +50,22 @@ def main() -> None:
     """
     print_green("Starting Kubernetes Pod Creation Automation", add_separators=True)
 
+    from app.utilities.gcp_utilities import upload_directory
+    from google.cloud import storage
+
+    print_blue("Uploading models to GCS bucket before applying manifests...", add_separators=True)
+    storage_client = storage.Client()
+    bucket_name = "machine-learning-ops-images-bucket-2026"
+    local_models_directory = os.path.join(project_root_directory, "infrastructure/docker/triton/served_models")
+    
+    upload_directory(
+        storage_client=storage_client,
+        bucket_name=bucket_name,
+        local_directory_path=local_models_directory,
+        destination_prefix="served_models"
+    )
+    print_green("Successfully uploaded models to GCS!", add_separators=True)
+
     # Define the core application manifests that need to be deployed
     kubernetes_manifest_paths: List[str] = [
         "infrastructure/kubernetes/applications/triton.yaml",

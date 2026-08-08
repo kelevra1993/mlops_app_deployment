@@ -1,3 +1,4 @@
+import os
 from typing import List, Dict
 from google.cloud import bigquery
 from google.cloud import storage
@@ -123,3 +124,39 @@ def get_recent_inferences(bigquery_client: bigquery.Client, table_reference: str
     except Exception as e:
         print(f"Error retrieving recent inferences from BigQuery: {e}")
         return []
+
+
+def upload_directory(storage_client: storage.Client, bucket_name: str, local_directory_path: str,
+                     destination_prefix: str) -> None:
+    """
+    Uploads an entire local directory to Google Cloud Storage.
+
+    This function supports the MLOps pipeline by ensuring that model artifacts 
+    are securely and accurately copied from the local repository to the target 
+    GCS bucket, allowing the Triton Inference Server to dynamically load them.
+
+    Args:
+        storage_client (storage.Client): The Google Cloud Storage client used for connection.
+        bucket_name (str): The name of the GCS bucket where the models will be stored.
+        local_directory_path (str): The absolute or relative path to the local directory containing models.
+        destination_prefix (str): The prefix (folder path) in the GCS bucket where models are placed.
+
+    Returns:
+        None
+    """
+    bucket = storage_client.bucket(bucket_name)
+
+    for root, _, files in os.walk(local_directory_path):
+        for file in files:
+            local_file_path = os.path.join(root, file)
+            # Calculate the relative path from the local directory
+            relative_path = os.path.relpath(local_file_path, local_directory_path)
+            # Ensure correct path separator for GCS
+            destination_file_name = os.path.join(destination_prefix, relative_path).replace("\\", "/")
+            
+            blob = bucket.blob(destination_file_name)
+            try:
+                blob.upload_from_filename(local_file_path)
+                print(f"Successfully uploaded {local_file_path} to gs://{bucket_name}/{destination_file_name}")
+            except Exception as e:
+                print(f"Error uploading {local_file_path} to GCS: {e}")
