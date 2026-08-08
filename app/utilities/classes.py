@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class InferenceResponse(BaseModel):
     """
     Data model representing the standard JSON response returned by the inference API.
