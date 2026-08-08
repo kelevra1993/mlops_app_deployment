@@ -35,7 +35,7 @@ def apply_kubernetes_manifest(manifest_file_path: str) -> None:
     print_yellow(f"Running Command : {kubectl_apply_command_string}")
 
     try:
-        # subprocess.run(kubectl_apply_command_list, check=True, cwd=project_root_directory)
+        subprocess.run(kubectl_apply_command_list, check=True, cwd=project_root_directory)
         print_green(f"Successfully applied {os.path.basename(manifest_file_path)}!", add_separators=True)
     except subprocess.CalledProcessError:
         print(f"❌ Error applying Kubernetes manifest: {manifest_file_path}")
@@ -57,6 +57,7 @@ def main() -> None:
         "infrastructure/kubernetes/applications/gradio.yaml"]
 
     for manifest_path in kubernetes_manifest_paths:
+        print("")
         absolute_manifest_path = os.path.join(project_root_directory, manifest_path)
 
         # Verify the file exists before attempting to apply it
@@ -66,7 +67,7 @@ def main() -> None:
 
         apply_kubernetes_manifest(manifest_file_path=manifest_path)
 
-    print_green("🎉 All Kubernetes pods and services have been successfully deployed!", add_separators=True)
+    print("\n🎉 All Kubernetes pods and services have been successfully deployed!\n")
 
 
 if __name__ == "__main__":
