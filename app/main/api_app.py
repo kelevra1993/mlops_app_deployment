@@ -6,7 +6,6 @@ import tempfile
 
 from google.cloud import bigquery, storage
 from fastapi import FastAPI, UploadFile, File, Form
-from pydantic import BaseModel
 
 # Ensure the root project directory is in the Python path for imports to work correctly
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
@@ -21,6 +20,7 @@ from app.utilities.constants import (PROJECT_ID,
                                      PREDICTED_INFROMATION_COLUMNS,
                                      REPLICA_NAME,
                                      TRITON_SERVER_URL)
+from app.utilities.classes import InferenceResponse
 
 app = FastAPI(
     title="MLOps Classifier API",
@@ -39,22 +39,21 @@ print(f"Initializing Triton client connecting to: {TRITON_SERVER_URL}")
 triton_client = get_inference_server_client(TRITON_SERVER_URL)
 
 
-# todo not properly documented yet.
-# todo put it somewhere else like a file named classes or objects ?
-class InferenceResponse(BaseModel):
-    uuid: str
-    predicted_class: str
-    probability: float
-    gcs_uri: str
-    message: str
-
-
 @app.post("/infer", response_model=InferenceResponse)
-async def run_inference(image: UploadFile = File(...), additional_comment: str = Form("")):
+async def run_inference(image: UploadFile = File(...), additional_comment: str = Form("")) -> InferenceResponse:
     """
-    # todo update the documentation
-    Endpoint to process an uploaded image, run inference, save the image to GCS, 
-    and store the result in BigQuery.
+    Handles POST requests to the API for performing image classification using the Triton inference backend.
+    
+    This function acts as the programmatic entry point for the MLOps pipeline. It receives an uploaded image,
+    runs it through the Triton Inference Server, stores the original image in Google Cloud Storage, and logs 
+    the prediction results in BigQuery for auditing and analytics.
+    
+    Args:
+        image (UploadFile): The image file uploaded by the client.
+        additional_comment (str): Optional context or comment provided by the client.
+        
+    Returns:
+        InferenceResponse: A structured response containing the prediction result, UUID, and Google Cloud Storage URI.
     """
 
     # Generate a unique identifier for this particular inference request
@@ -72,17 +71,17 @@ async def run_inference(image: UploadFile = File(...), additional_comment: str =
 
         # 2. Read the image using OpenCV for Triton preprocessing
         # cv2.imread expects a valid filepath and returns a numpy array
-        image = cv2.imread(temporary_image_path)
-        if image is None:
-            return {"message": "Invalid image format.", "uuid": inference_uuid, "predicted_class": "Error",
-                    "probability": 0.0, "gcs_uri": ""}
+        image_numpy_array = cv2.imread(temporary_image_path)
+        if image_numpy_array is None:
+            return InferenceResponse(message="Invalid image format.", uuid=inference_uuid,
+                                     predicted_class="Error", probability=0.0, gcs_uri="")
 
         # 3. Perform inference via Triton
         predicted_class, probability = perform_inference(
-            image,
-            triton_client,
-            'Input-Producer/Placeholders/Images/Placeholder_1:0',
-            'Outputs/Softmax:0',
+            image=image_numpy_array,
+            client=triton_client,
+            input_tensor='Input-Producer/Placeholders/Images/Placeholder_1:0',
+            output_tensor='Outputs/Softmax:0',
             height=300, width=300, keep_ratio=True, center=False)
 
         # 4. Upload the saved image to Google Cloud Storage
