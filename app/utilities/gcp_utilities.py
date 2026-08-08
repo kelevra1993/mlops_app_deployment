@@ -1,8 +1,11 @@
 import os
-from typing import List, Dict
+import subprocess
+import json
+from typing import List, Dict, Optional, Tuple
 from google.cloud import bigquery
 from google.cloud import storage
 from datetime import datetime
+from app.utilities.os_utilities import get_command_path
 
 
 def upload_object(storage_client: storage.Client, bucket_name: str, local_file_path: str,
@@ -126,8 +129,59 @@ def get_recent_inferences(bigquery_client: bigquery.Client, table_reference: str
         return []
 
 
-def upload_directory(storage_client: storage.Client, bucket_name: str, local_directory_path: str,
-                     destination_prefix: str) -> None:
+def check_existing_reservation(reservation_name: str, project_id: str) -> Optional[Tuple[str, str, str]]:
+    """
+    Checks if a GCP compute reservation already exists by name.
+    
+    Args:
+        reservation_name (str): The name of the reservation to search for.
+        project_id (str): The GCP project ID to run the command against.
+        
+    Returns:
+        Optional[Tuple[str, str, str]]: A tuple containing (zone, machine_type, accelerator_type) 
+        if the reservation exists, otherwise None.
+    """
+    try:
+        gcloud_path = get_command_path(command_name="gcloud")
+        if not gcloud_path:
+            print("❌ Error: gcloud command not found.")
+            return None
+
+        # We list all reservations and format the output as JSON for easy parsing.
+        command = [
+            gcloud_path, "compute", "reservations", "list",
+            f"--project={project_id}",
+            f"--filter=name={reservation_name}",
+            "--format=json"]
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        reservations = json.loads(result.stdout)
+
+        if reservations and len(reservations) > 0:
+            reservation = reservations[0]
+            # Zone is returned as a full URL, e.g., https://www.googleapis.com/compute/v1/projects/project/zones/europe-west3-a
+            zone = reservation.get("zone", "").split("/")[-1]
+            specific_reservation = reservation.get("specificReservation", {})
+            instance_properties = specific_reservation.get("instanceProperties", {})
+
+            machine_type = instance_properties.get("machineType", "")
+
+            # Accelerators are in a list, we just grab the first one assuming 1 accelerator
+            guest_accelerators = instance_properties.get("guestAccelerators", [])
+            accelerator_type = ""
+            if guest_accelerators:
+                accelerator_type = guest_accelerators[0].get("acceleratorType", "")
+
+            if zone and machine_type and accelerator_type:
+                return (zone, machine_type, accelerator_type)
+
+    except (subprocess.CalledProcessError, json.JSONDecodeError, KeyError) as e:
+        print(f"Error checking existing reservation: {e}")
+
+    return None
+
+
+def upload_directory(storage_client: storage.Client, bucket_name: str,
+                     local_directory_path: str, destination_prefix: str) -> None:
     """
     Uploads an entire local directory to Google Cloud Storage.
 
@@ -149,11 +203,13 @@ def upload_directory(storage_client: storage.Client, bucket_name: str, local_dir
     for root, _, files in os.walk(local_directory_path):
         for file in files:
             local_file_path = os.path.join(root, file)
+
             # Calculate the relative path from the local directory
             relative_path = os.path.relpath(local_file_path, local_directory_path)
+
             # Ensure correct path separator for GCS
             destination_file_name = os.path.join(destination_prefix, relative_path).replace("\\", "/")
-            
+
             blob = bucket.blob(destination_file_name)
             try:
                 blob.upload_from_filename(local_file_path)
