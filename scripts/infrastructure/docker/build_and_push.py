@@ -84,7 +84,8 @@ def main() -> None:
         docker_configuration_command_list = ["gcloud", "auth", "configure-docker", artifact_registry_domain, "--quiet"]
         docker_configuration_command = " ".join(docker_configuration_command_list)
         print_yellow(f"Running Command : {docker_configuration_command}", add_separators=True)
-        subprocess.run(docker_configuration_command_list, check=True, )
+        subprocess.run(docker_configuration_command_list, check=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         print_green(f"Docker Configured Successfuly !!!", add_separators=True)
     except subprocess.CalledProcessError:
         print("❌ Error configuring Docker authentication")
@@ -104,7 +105,8 @@ def main() -> None:
         docker_build_and_push_command = " ".join(docker_build_and_push_command_list)
         print_yellow(f"Running Command : {docker_build_and_push_command}", add_separators=True)
 
-        subprocess.run(docker_build_and_push_command_list, cwd=project_root_directory, check=True)
+        subprocess.run(docker_build_and_push_command_list, cwd=project_root_directory, check=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         link_to_docker_image = (f"https://console.cloud.google.com/artifacts/docker/"
                                 f"{PROJECT_ID}/{gcp_region}/{artifact_registry_name}?authuser=1&project={PROJECT_ID}")
         print_green(f"Image Pushed Successfully  To {link_to_docker_image} !!!", add_separators=True)
