@@ -13,6 +13,21 @@ variable "zone" {
   default     = "europe-west4-c"
 }
 
+variable "reservation_name" {
+  description = "Name of the reservation created by the find_and_reserve_gpu script"
+  type        = string
+}
+
+variable "machine_type" {
+  description = "The GCP machine type to use for the GPU node"
+  type        = string
+}
+
+variable "accelerator_type" {
+  description = "The accelerator (GPU) type to use"
+  type        = string
+}
+
 # 0. Enable Required Google Cloud APIs
 resource "google_project_service" "enabled_apis" {
   for_each = toset([
@@ -164,22 +179,7 @@ resource "google_container_node_pool" "gradio_nodes" {
   }
 }
 
-resource "google_compute_reservation" "l4_reservation" {
-  name                          = "l4-gpu-reservation"
-  zone                          = var.zone
-  specific_reservation_required = true
 
-  specific_reservation {
-    count = 1
-    instance_properties {
-      machine_type = "g2-standard-4"
-      guest_accelerators {
-        accelerator_type  = "nvidia-l4"
-        accelerator_count = 1
-      }
-    }
-  }
-}
 # 6.b. Then the nodes that will a gpu since they must have a gpu
 resource "google_container_node_pool" "triton_nodes" {
   name       = "triton-reserved-node-pool"
@@ -193,12 +193,12 @@ resource "google_container_node_pool" "triton_nodes" {
 
   # Define the machine types and set the gpu's
   node_config {
-    machine_type = "g2-standard-4"
+    machine_type = var.machine_type
     disk_size_gb = 50
 
     # Add GPU to the node
     guest_accelerator {
-      type  = "nvidia-l4"
+      type  = var.accelerator_type
       count = 1
     }
 
@@ -217,7 +217,7 @@ resource "google_container_node_pool" "triton_nodes" {
     reservation_affinity {
       consume_reservation_type = "SPECIFIC_RESERVATION"
       key                      = "compute.googleapis.com/reservation-name"
-      values                   = [google_compute_reservation.l4_reservation.name]
+      values                   = [var.reservation_name]
     }
   }
 }
