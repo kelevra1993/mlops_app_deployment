@@ -6,7 +6,7 @@ from typing import List, Dict, Optional, Tuple
 from google.cloud import bigquery
 from google.cloud import storage
 from datetime import datetime
-from app.utilities.os_utilities import get_command_path
+from app.utilities.os_utilities import get_command_path, print_yellow
 
 # Suppress Google Auth UserWarnings regarding Application Default Credentials and Quota Projects
 warnings.filterwarnings("ignore", "Your application has authenticated using end user credentials")
@@ -42,7 +42,7 @@ def upload_object(storage_client: storage.Client, bucket_name: str, local_file_p
         blob.upload_from_filename(local_file_path)
 
         gcs_uri = f"gs://{bucket_name}/{destination_file_name}"
-        print(f"Successfully uploaded object to {gcs_uri}")
+        print_yellow(f" - Successfully uploaded object to {gcs_uri}")
 
         return gcs_uri
     except Exception as e:
@@ -90,7 +90,7 @@ def insert_inference_data_in_bigquery(bigquery_client: bigquery.Client, table_re
     if errors:
         print(f"Encountered errors while inserting rows into BigQuery: {errors}")
     else:
-        print(f"Successfully inserted inference record {uuid_str} into BigQuery.")
+        print_yellow(f" - Successfully inserted inference record {uuid_str} into BigQuery.")
 
 
 def get_recent_inferences(bigquery_client: bigquery.Client, table_reference: str,
@@ -127,6 +127,7 @@ def get_recent_inferences(bigquery_client: bigquery.Client, table_reference: str
 
         # Convert the BigQuery Row objects to standard python dictionaries
         rows = [dict(row) for row in results]
+        print_yellow(f" - Successfully Fetched Previous {len(rows)} Inferred Data")
         return rows
     except Exception as e:
         print(f"Error retrieving recent inferences from BigQuery: {e}")
