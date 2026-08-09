@@ -84,19 +84,25 @@ The repository is organized into three primary areas to enforce a clear separati
 Due to cloud capacity limits, acquiring a GPU as an individual requires finding an available zone. The deployment workflow handles this automatically using Python scripts located in the `scripts/infrastructure` directory, rather than relying on manual commands.
 
 **1. Provision Infrastructure & Define Zone**
-Run the Terraform setup script to iterate through multiple GCP regions, locate an available NVIDIA T4 GPU, and reserve it. This script automatically generates a file that sets the regions and zones for us, and then provisions the required networking, GKE cluster, and node pools.
+Run the setup script to iterate through multiple GCP zones, locate an available NVIDIA GPU, and reserve it. This script automatically creates a file that sets the regions and zones for us.
 ```bash
 uv run python scripts/infrastructure/terraform/setup_infrastructure_location.py
 ```
 
 *Manual Equivalent*:
-If you were to provision manually after determining your zone, you would execute:
+If you were to search and reserve manually, you would execute a command like:
 ```bash
+gcloud compute reservations create machine-learning-gpu-reservation --project=<PROJECT_ID> --machine-type=<MACHINE_TYPE> --accelerator=type=<GPU_TYPE>,count=1 --zone=<ZONE> --vm-count=1 --require-specific-reservation
+```
+
+Once the zone is reserved and the variables file is generated, provision the infrastructure (networking, GKE cluster, node pools) via Terraform:
+```bash
+cd infrastructure/terraform
 terraform init
-terraform plan
 terraform apply -auto-approve
 ```
 
+Below the output of `setup_infrastructure_location.py`:
 <div align="center">
   <img src="README/gpu-reservation.png" alt="GPU Reservation Output" width="800"/>
 </div>
@@ -115,6 +121,7 @@ gcloud auth configure-docker <REGION>-docker.pkg.dev
 ```
 *(Note: Replace `<REGION>` with the region corresponding to the zone selected in step 1, e.g., `europe-west4`)*
 
+Below the output of `build_and_push.py`:
 <div align="center">
   <img src="README/build_and_push_docker_image.png" alt="Docker Build and Push Output" width="800"/>
 </div>
@@ -153,6 +160,7 @@ kubectl get service grafana-service --watch
 
 After successful deployment, the script outputs a clean summary of URLs, including your live Gradio App IP, Grafana dashboard, BigQuery Dataset, and GCS buckets.
 
+Below the output of `create_kubernetes_pods.py`:
 <div align="center">
   <img src="README/pod-creation.png" alt="Pod Creation Output" width="800"/>
 </div>
