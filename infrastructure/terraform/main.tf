@@ -134,7 +134,7 @@ resource "google_project_iam_member" "node_service_account_registry" {
 # Allows our nodes to read and write files (like user images) to Cloud Storage buckets
 resource "google_project_iam_member" "node_service_account_storage" {
   project = "ml-ops-classifier-app"
-  role    = "roles/storage.objectAdmin"
+  role    = "roles/storage.admin"
   member  = "serviceAccount:${google_service_account.kubernetes_node_service_account.email}"
 }
 
