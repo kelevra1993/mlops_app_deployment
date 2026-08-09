@@ -141,7 +141,6 @@ def process_image(user_image_path: str, default_image_name: str, additional_comm
         default_image_name=default_image_name,
         default_data_directory=default_data_directory)
 
-    # TODO IMPLEMENTATION WILL BE CHANGED TO LOAD ERROR IMAGE WITH MESSAGE
     if image_to_process is None:
         return image_name, 0.0, "Failed to load image", None
 

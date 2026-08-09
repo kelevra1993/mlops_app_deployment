@@ -79,8 +79,8 @@ def make_single_request(api_url: str, image_name: str, image_bytes: bytes) -> bo
         return False
 
 
-def worker_process_task(api_url: str, num_requests: int, loaded_images: List[Tuple[str, bytes]], num_threads: int) -> \
-Tuple[int, int]:
+def worker_process_task(api_url: str, num_requests: int,
+                        loaded_images: List[Tuple[str, bytes]], num_threads: int) -> Tuple[int, int]:
     """
     Executes a chunk of requests in a separate Python process using an internal ThreadPoolExecutor.
     """
@@ -135,7 +135,8 @@ def run_inference_loops(api_url: str, num_iterations: int, number_processes: int
     remainder = num_iterations % number_processes
 
     print_blue(
-        output=f"Spawning {number_processes} independent processes (with {threads_per_process} threads each) to execute {num_iterations} API calls...",
+        output=f"Spawning {number_processes} independent processes"
+               f" (with {threads_per_process} threads each) to execute {num_iterations} API calls...",
         add_separators=True)
 
     total_successful = 0
@@ -148,7 +149,8 @@ def run_inference_loops(api_url: str, num_iterations: int, number_processes: int
             # Distribute remainder to the first process
             reqs = requests_per_process + (remainder if i == 0 else 0)
             if reqs > 0:
-                futures.append(executor.submit(worker_process_task, api_url, reqs, loaded_images, threads_per_process))
+                futures.append(executor.submit(worker_process_task, api_url, reqs, loaded_images,
+                                               threads_per_process))
 
         # Use tqdm to track progress as entire chunks/processes finish
         for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures),
@@ -167,7 +169,7 @@ def main() -> None:
     """
     api_url = get_api_url()
     if api_url:
-        run_inference_loops(api_url=api_url, num_iterations=10000, number_processes=0, threads_per_process=50)
+        run_inference_loops(api_url=api_url, num_iterations=1000000, number_processes=0, threads_per_process=100)
 
 
 if __name__ == "__main__":
