@@ -80,7 +80,7 @@ def get_service_url(service_name: str) -> str:
 
     command = [kubectl_path, "get", "service", service_name,
                "-o", "jsonpath='{.status.loadBalancer.ingress[0].ip}'"]
-    print(f"Running : {' '.join(command)}")
+    print(f" - Running : {' '.join(command)}")
     max_attempts = 60
     for _ in range(max_attempts):
         try:
@@ -91,11 +91,12 @@ def get_service_url(service_name: str) -> str:
         except subprocess.CalledProcessError:
             pass
         time.sleep(5)
-    
+
     print_yellow(
         f"⚠️ Timed out waiting for external IP for {service_name}. You can check manually with: kubectl get service {service_name}",
         add_separators=True, upper_space=1)
     return f"Pending (check with kubectl get service {service_name})"
+
 
 def wait_and_print_application_information() -> None:
     """
