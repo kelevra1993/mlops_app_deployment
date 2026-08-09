@@ -146,33 +146,35 @@ def get_command_path(command_name: str) -> Optional[str]:
     return command_path
 
 
-def extract_region_from_terraform_variables(terraform_variables_file_path: str) -> str:
+def extract_information_from_terraform_variables(terraform_variables_file_path: str) -> Dict[str, str]:
     """
-    Extracts the GCP region from the Terraform variables file.
+    Extracts configuration details from the Terraform variables file.
 
-    This function dynamically retrieves the region to configure Docker, Artifact Registry,
-    and Kubernetes manifests for the downstream MLOps application deployment pipeline.
+    This function dynamically retrieves infrastructure parameters such as the zone, 
+    region, reservation name, machine type, and accelerator type to configure 
+    subsequent steps in the MLOps application deployment pipeline.
     
     Args:
-        terraform_variables_file_path (str): The absolute path to the .tfvars file containing the region.
+        terraform_variables_file_path (str): The absolute path to the .tfvars file.
         
     Returns:
-        str: The extracted GCP region string.
+        Dict[str, str]: A dictionary containing the extracted keys and their corresponding values.
     """
-    extracted_region: Optional[str] = None
+    extracted_information = {}
     try:
         with open(terraform_variables_file_path, 'r') as terraform_variables_file:
             for line_content in terraform_variables_file:
-                region_regex_match = re.match(r'^region\s*=\s*"([^"]+)"', line_content.strip())
-                if region_regex_match:
-                    extracted_region = region_regex_match.group(1)
-                    break
+                regex_match = re.match(r'^([a-zA-Z0-9_]+)\s*=\s*"([^"]+)"', line_content.strip())
+                if regex_match:
+                    key = regex_match.group(1)
+                    value = regex_match.group(2)
+                    extracted_information[key] = value
     except FileNotFoundError:
         print(f"❌ Error: Could not find the Terraform variables file at {terraform_variables_file_path}")
         sys.exit(1)
 
-    if not extracted_region:
-        print("❌ Error: Could not extract the region from the Terraform variables file.")
+    if not extracted_information:
+        print("❌ Error: Could not extract any information from the Terraform variables file.")
         sys.exit(1)
 
-    return extracted_region
+    return extracted_information

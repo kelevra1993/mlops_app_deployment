@@ -12,7 +12,7 @@ sys.path.append(project_root_directory)
 
 from app.utilities.constants import PROJECT_ID
 from app.utilities.os_utilities import (print_green, print_yellow, print_blue, get_command_path, print_red,
-                                        extract_region_from_terraform_variables)
+                                        extract_information_from_terraform_variables)
 
 
 def main() -> None:
@@ -40,7 +40,12 @@ def main() -> None:
                                             'location.auto.tfvars')
 
     # Get the gcp region which was decided based on the available gpus
-    gcp_region = extract_region_from_terraform_variables(terraform_variables_file_path=terraform_variables_path)
+    terraform_info = extract_information_from_terraform_variables(
+        terraform_variables_file_path=terraform_variables_path)
+    gcp_region = terraform_info.get("region")
+    if not gcp_region:
+        print_red(output="❌ Error: Region not found in Terraform variables.", add_separators=True)
+        sys.exit(1)
 
     print_green("Successfully Retrieved Environment Variables", add_separators=True)
     print(f" ✅ Found Region: {gcp_region}")

@@ -14,8 +14,8 @@ sys.path.append(project_root_directory)
 
 from app.utilities.constants import PROJECT_ID
 from app.utilities.os_utilities import (print_green, print_yellow, print_blue, get_command_path, print_red,
-                                        extract_region_from_terraform_variables)
-from app.utilities.gcp_utilities import upload_directory
+                                        extract_information_from_terraform_variables)
+from app.utilities.gcp_utilities import upload_directory, get_kubernetes_cluster_credentials
 
 
 def apply_kubernetes_manifest(manifest_file_path: str, region: str) -> None:
@@ -71,7 +71,17 @@ def main() -> None:
 
     terraform_variables_path = os.path.join(project_root_directory, 'infrastructure', 'terraform',
                                             'location.auto.tfvars')
-    gcp_region = extract_region_from_terraform_variables(terraform_variables_file_path=terraform_variables_path)
+    terraform_info = extract_information_from_terraform_variables(
+        terraform_variables_file_path=terraform_variables_path)
+    gcp_region = terraform_info.get("region")
+    gcp_zone = terraform_info.get("zone")
+
+    if not gcp_region or not gcp_zone:
+        print_red(output="❌ Error: Region or Zone not found in Terraform variables.", add_separators=True)
+        sys.exit(1)
+
+    print_blue("Fetching Kubernetes credentials before proceeding...", add_separators=True)
+    get_kubernetes_cluster_credentials(cluster_name="machine-learning-cluster", zone=gcp_zone, project_id=PROJECT_ID)
 
     print_blue("Uploading models to GCS bucket before applying manifests...", add_separators=True)
     storage_client = storage.Client(project=PROJECT_ID)

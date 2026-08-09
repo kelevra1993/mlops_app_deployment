@@ -133,7 +133,8 @@ def process_image(user_image_path: str, default_image_name: str, additional_comm
         storage_client (Any): The Google Cloud Storage client object.
         
     Returns:
-        Tuple[str, float, str, str]: A tuple containing the image name, confidence score, predicted class, and local image path.
+        Tuple[str, float, str, str]: A tuple containing the :
+         image name, confidence score, predicted class, and local image path.
     """
     image_name, image_path, image_to_process = determine_image_to_process(
         user_image_path=user_image_path,
@@ -178,12 +179,16 @@ def fetch_recent_inferences(target_columns: List[str], bigquery_client: Any, tab
     """
 
     rows = get_recent_inferences(bigquery_client=bigquery_client, table_reference=table_reference,
-                                 target_columns=target_columns, limit=5)
+                                 target_columns=target_columns, limit=10)
 
     # Gradio's grow.Dataframe expects a list of lists (rows of columns)
     formatted_rows = []
     for row in rows:
-        formatted_rows.append([row.get("uuid", ""), row.get("predicted_class", ""), row.get("probability", 0.0),
-                               str(row.get("timestamp", "")), row.get("kubernetes_node", ""),
-                               row.get("gcs_image_uri", ""), row.get("additional_comment", "")])
+        formatted_rows.append([row.get("uuid", ""),
+                               row.get("predicted_class", ""),
+                               row.get("probability", 0.0),
+                               str(row.get("timestamp", "")),
+                               row.get("kubernetes_node", ""),
+                               row.get("gcs_image_uri", ""),
+                               row.get("additional_comment", "")])
     return formatted_rows

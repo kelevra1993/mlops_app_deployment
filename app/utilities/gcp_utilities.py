@@ -226,3 +226,40 @@ def upload_directory(storage_client: storage.Client, bucket_name: str,
                     print(f"Successfully uploaded {local_file_path} to gs://{bucket_name}/{destination_file_name}")
             except Exception as e:
                 print(f"Error uploading {local_file_path} to GCS: {e}")
+
+
+def get_kubernetes_cluster_credentials(cluster_name: str, zone: str, project_id: str) -> None:
+    """
+    Retrieves the authentication credentials for the specified Kubernetes cluster.
+
+    This function is a critical step in the MLOps pipeline deployment process. 
+    It ensures that the local machine running the deployment script is properly 
+    authenticated with the Google Cloud cluster before attempting to apply any 
+    Kubernetes manifests.
+
+    Args:
+        cluster_name (str): The name of the Google Kubernetes Engine cluster.
+        zone (str): The Google Cloud zone where the cluster is located.
+        project_id (str): The Google Cloud project ID.
+
+    Returns:
+        None
+    """
+    try:
+        gcloud_path = get_command_path(command_name="gcloud")
+        if not gcloud_path:
+            print("❌ Error: gcloud command not found.")
+            return None
+
+        print(f"Fetching credentials for cluster {cluster_name} in zone {zone}...")
+        command = [
+            gcloud_path, "container", "clusters", "get-credentials",
+            cluster_name,
+            f"--zone={zone}",
+            f"--project={project_id}"
+        ]
+        
+        subprocess.run(command, check=True)
+        print(f"Successfully fetched credentials for {cluster_name}.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error fetching cluster credentials: {e}")

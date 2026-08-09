@@ -58,7 +58,7 @@ If Terraform hangs while creating node pools, you can use `gcloud` to troublesho
 
 **1. Check cluster status:**
 ```bash
-gcloud container clusters list
+gcloud container clusters list --project=ml-ops-classifier-app
 ```
 *(If the status is `RECONCILING`, GKE is currently locked updating a node pool).*
 
