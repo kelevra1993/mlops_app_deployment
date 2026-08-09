@@ -28,7 +28,7 @@ bigquery_client = bigquery.Client(project=PROJECT_ID)
 storage_client = storage.Client(project=PROJECT_ID)
 
 # Prepare default images for the dropdown
-default_data_directory = Path(os.getcwd()).parent / "data"
+default_data_directory = Path(__file__).parent.parent / "data"
 inference_images = get_default_inference_data_images(data_directory=str(default_data_directory))
 image_default_choices = [str(os.path.basename(image_path)) for image_path in inference_images]
 
