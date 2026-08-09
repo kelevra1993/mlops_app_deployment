@@ -93,7 +93,8 @@ def get_service_url(service_name: str) -> str:
         time.sleep(5)
 
     print_yellow(
-        f"⚠️ Timed out waiting for external IP for {service_name}. You can check manually with: kubectl get service {service_name}",
+        f"⚠️ Timed out waiting for external IP for {service_name}."
+        f" You can check manually with: kubectl get service {service_name}",
         add_separators=True, upper_space=1)
     return f"Pending (check with kubectl get service {service_name})"
 
@@ -110,6 +111,7 @@ def wait_and_print_application_information() -> None:
                add_separators=True, upper_space=1)
 
     app_url = get_service_url("gradio-service")
+    api_url = get_service_url("api-service")
     grafana_url = get_service_url("grafana-service")
 
     models_url = f"https://console.cloud.google.com/storage/browser/{BUCKET_NAME}/served_models"
@@ -118,6 +120,7 @@ def wait_and_print_application_information() -> None:
     info_message = (
         f"🎉 Application Information:\n"
         f" - Gradio App URL: {app_url}\n"
+        f" - API Swagger URL: {api_url}/docs\n"
         f" - Grafana URL: {grafana_url} (Login: admin / admin)\n"
         f" - Served Models Bucket: {models_url}\n"
         f" - Inferred Images Bucket: {images_url}\n"
