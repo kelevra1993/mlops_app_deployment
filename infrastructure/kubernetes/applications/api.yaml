@@ -21,6 +21,9 @@ spec:
         cloud.google.com/gke-nodepool: gradio-machine-learning-node-pool
       containers:
       - name: api-container
+        # Allocates a pseudo-TTY and keeps stdin open so we can connect to the terminal using 'kubectl attach'
+        tty: true
+        stdin: true
         # Shared image with Gradio, but we pass APP_TYPE="api" to start FastAPI
         image: REGION_PLACEHOLDER-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry/gradio-app:latest
         imagePullPolicy: Always

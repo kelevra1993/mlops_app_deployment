@@ -43,6 +43,9 @@ spec:
       containers:
       # A list of containers to run inside this Pod (usually just one per Pod).
       - name: gradio-container
+        # Allocates a pseudo-TTY and keeps stdin open so we can connect to the terminal using 'kubectl attach'
+        tty: true
+        stdin: true
 
         # The exact Docker image URI pushed to Artifact Registry
         image: REGION_PLACEHOLDER-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry/gradio-app:latest
@@ -92,6 +95,9 @@ spec:
   # and automatically route internet traffic to them.
   selector:
     app: gradio
+
+  # Maintain session affinity based on Client IP to prevent file not found errors across multiple Gradio replicas
+  sessionAffinity: ClientIP
 
   # 6. Port mappings
   ports:
