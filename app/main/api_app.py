@@ -40,7 +40,7 @@ triton_client = get_inference_server_client(TRITON_SERVER_URL)
 
 
 @app.post("/infer", response_model=InferenceResponse)
-async def run_inference(image: UploadFile = File(...), additional_comment: str = Form("")) -> InferenceResponse:
+def run_inference(image: UploadFile = File(...), additional_comment: str = Form("")) -> InferenceResponse:
     """
     Handles POST requests to the API for performing image classification using the Triton inference backend.
     
@@ -65,7 +65,7 @@ async def run_inference(image: UploadFile = File(...), additional_comment: str =
 
     try:
         # 1. Save the uploaded file to disk
-        contents = await image.read()
+        contents = image.file.read()
         with open(temporary_image_path, "wb") as f:
             f.write(contents)
 
