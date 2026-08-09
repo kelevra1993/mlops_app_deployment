@@ -1,19 +1,84 @@
 # MLOps Application Deployment Pipeline
 
-This project provisions a Machine Learning pipeline on Google Cloud Platform (GCP) using Terraform, Google Kubernetes Engine (GKE), Gradio, and NVIDIA Triton Inference Server.
+This repository contains a full MLOps deployment pipeline featuring a **Gradio Frontend** and a **Triton Inference Server Backend**, running on **Google Kubernetes Engine (GKE)**, with infrastructure managed by **Terraform** on Google Cloud Platform (GCP). It integrates Google Cloud Storage (GCS) for model storage, BigQuery for prediction history logging, and Artifact Registry for custom Docker images.
+<div align="center">
+  <img src="README/app.png" alt="MLOps App Interface" width="800"/>
+</div>
 
 ---
 
 ## Table of Contents
-1. [Google Cloud SDK (gcloud)](#1-google-cloud-sdk-gcloud)
-2. [Terraform (terraform)](#2-terraform-terraform)
-3. [Docker (docker)](#3-docker-docker)
-4. [Kubernetes (kubectl)](#4-kubernetes-kubectl)
-5. [Next Steps & Roadmap](#5-next-steps--roadmap)
+1. [Prerequisites](#1-prerequisites)
+2. [Architecture Overview](#2-architecture-overview)
+3. [Repository Structure](#3-repository-structure)
+4. [Google Cloud SDK (gcloud)](#4-google-cloud-sdk-gcloud)
+5. [Terraform (terraform)](#5-terraform-terraform)
+6. [Docker (docker)](#6-docker-docker)
+7. [Kubernetes (kubectl)](#7-kubernetes-kubectl)
+8. [Next Steps & Roadmap](#8-next-steps--roadmap)
+9. [Terraform State Management](#9-terraform-state-management)
+10. [Debugging History & Corrections](#10-debugging-history--corrections)
 
 ---
 
-## 1. Google Cloud SDK (gcloud)
+## 1. Prerequisites
+
+To run this repository locally or to prepare for deployment, you will need to ensure the following prerequisites and dependencies are configured:
+
+### Package Management
+- **`uv`**: Used for Python package management.
+
+### Google Cloud Platform (GCP)
+- **Artifact Registry**: To store our Gradio application Docker image.
+- **Infrastructure Bucket**: A GCS bucket to store our Terraform state file securely.
+- **Application Bucket**: A GCS bucket to store the images that are uploaded by the user.
+- **BigQuery**: To store and retrieve the inference history.
+
+### Infrastructure
+- **Terraform**: For provisioning and managing our infrastructure.
+- **Kubernetes**: For container orchestration and deploying workloads.
+
+### Monitoring
+- **Grafana**: For dashboard visualization.
+- **Prometheus**: For metrics collection and monitoring.
+
+---
+
+## 2. Architecture Overview
+
+This project implements an MLOps architecture on GCP:
+
+- **Frontend (Gradio)**: A web interface running on a standard compute CPU node pool (`gradio-machine-learning-node-pool`).
+- **Backend (Triton Inference Server)**: A model serving engine running on a dedicated GPU node pool (`triton-machine-learning-node-pool` with NVIDIA T4 GPUs). It pulls machine learning models dynamically from a GCS bucket.
+- **Data Flow**: Users upload data via Gradio. Gradio communicates with Triton via internal Kubernetes DNS (`triton-service:8001`) over GRPC to request inference. Results are returned to the user, and inference metadata can be logged to BigQuery.
+- **Infrastructure**: Terraform is used to provision VPCs, Kubernetes clusters, node pools, Artifact Registries, and GCS buckets.
+
+---
+
+## 3. Repository Structure
+
+The repository is organized into three primary areas to enforce a clear separation of concerns:
+
+- **`app/`**: Contains all application-level code. This includes the Gradio frontend interface, data handling logic, helper utilities for interacting with Google Cloud APIs, and the Docker configurations required to containerize the application.
+- **`infrastructure/`**: Contains all infrastructure-as-code (IaC) definitions. This is divided into Terraform scripts for provisioning the underlying GCP resources, and Kubernetes manifests for orchestrating the containers on GKE.
+- **`scripts/`**: Contains utility scripts for local debugging, manual testing, or maintenance tasks.
+
+```text
+.
+├── app/
+│   ├── data/                 # Datasets and local inference files
+│   ├── docker/               # Dockerfiles (e.g., for building the Gradio app)
+│   ├── main/                 # Gradio frontend application logic
+│   └── utilities/            # Helper modules (Google Cloud, OS functions, etc.)
+├── infrastructure/
+│   ├── kubernetes/           # Kubernetes manifests (Gradio, Triton, NVIDIA DaemonSets)
+│   └── terraform/            # Terraform configurations (Main, Variables, Outputs)
+└── scripts/                  # Utility and debugging scripts
+```
+
+---
+
+## 4. Google Cloud SDK (gcloud)
 
 ### Prerequisites & Authentication
 Before starting, you must authenticate your local machine with Google Cloud.
@@ -79,7 +144,7 @@ gcloud container node-pools delete triton-machine-learning-node-pool --cluster m
 
 ---
 
-## 2. Terraform (terraform)
+## 5. Terraform (terraform)
 
 We use Terraform to automatically spin up the VPC, Kubernetes Cluster, Node Pools, Artifact Registry, Storage Buckets, and BigQuery datasets.
 
@@ -108,7 +173,7 @@ terraform apply -auto-approve
 
 ---
 
-## 3. Docker (docker)
+## 6. Docker (docker)
 
 We need to build our Gradio application into a Docker container and push it to the Google Artifact Registry created by Terraform.
 
@@ -140,7 +205,7 @@ docker run --rm mlops-app /src/app/.venv/bin/python app/utilities/inference_util
 
 ---
 
-## 4. Kubernetes (kubectl)
+## 7. Kubernetes (kubectl)
 
 Once the infrastructure is up, images are pushed, and models are uploaded, we deploy the workloads to GKE.
 
@@ -184,7 +249,7 @@ kubectl delete all --all
 
 ---
 
-## 5. Next Steps & Roadmap
+## 8. Next Steps & Roadmap
  
  - Ensure environment variables identifying each machine/pod are injected properly.
  - Finalize Secrets Manager integration.
@@ -192,7 +257,7 @@ kubectl delete all --all
  
  ---
  
- ## 6. Terraform State Management
+ ## 9. Terraform State Management
  
  We have migrated the local Terraform state to a Google Cloud Storage (GCS) backend for secure, shared state management. This ensures that the state is not lost and allows for collaboration without state conflicts.
  
@@ -208,7 +273,7 @@ kubectl delete all --all
 
 ---
 
-## 6. Debugging History & Corrections
+## 10. Debugging History & Corrections
 
 During the initial deployment of the Kubernetes cluster, a few misconfigurations were successfully debugged and corrected:
 
@@ -230,13 +295,3 @@ During the initial deployment of the Kubernetes cluster, a few misconfigurations
    - *Bug*: When running `kubectl apply`, the terminal threw an `i/o timeout` connecting to the Kubernetes control plane IP.
    - *Debugging*: We realized the infrastructure was spun up on a different machine (or CI/CD runner). Running `terraform plan` locally showed `24 to add`, meaning the local Terraform state was empty and unaware of the active cluster.
    - *Fix*: We determined that running `terraform apply` locally would mistakenly attempt to recreate the infrastructure. Instead, we simply synced the local machine to the existing cluster by fetching the credentials via `gcloud container clusters get-credentials <CLUSTER_NAME> --region <REGION> --project <PROJECT_ID>`.
-
-Next things that will need to be implemented :
-
-Refactoring of the whole repository :
-- Utilities folder will contain different sorts of utility functions separated clearly
-  - os_utilities
-  - google_cloud_utilities
-    - merging gcs and bigquery
-- Inference data to be renamed to data.
-- move run_inference.py to scripts since it is just a debugging function and properly document it.
