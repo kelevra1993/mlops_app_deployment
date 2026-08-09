@@ -5,6 +5,11 @@ This repository contains a full MLOps deployment pipeline featuring a **Gradio F
   <img src="README/app.png" alt="MLOps App Interface" width="800"/>
 </div>
 
+Below is how the monitoring is done with Grafana:
+<div align="center">
+  <img src="README/grafana.png" alt="Grafana Monitoring Dashboard" width="800"/>
+</div>
+
 ---
 
 ## Table of Contents
