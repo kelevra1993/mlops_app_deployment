@@ -159,6 +159,7 @@ def main() -> None:
 
     print("\n--- Kubernetes pods and services are currently being deployed! ---\n")
 
+    # Wait for the application to be deployed to get the ip address of the gradio app
     wait_and_print_gradio_service_ip()
 
 
