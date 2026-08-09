@@ -63,6 +63,40 @@ def apply_kubernetes_manifest(manifest_file_path: str, region: str) -> None:
     os.remove(temporary_manifest_path)
 
 
+def get_service_url(service_name: str) -> str:
+    """
+    Retrieves the external IP address of a deployed Kubernetes service to construct its public URL.
+    This function forms part of the MLOps pipeline deployment, allowing the system to automatically 
+    discover and provide clickable access links to user-facing applications like Gradio and Grafana 
+    once they are provisioned by the cloud provider.
+
+    Args:
+        service_name (str): The exact name of the Kubernetes service to inspect (e.g., 'gradio-service').
+    """
+    kubectl_path = get_command_path(command_name="kubectl")
+    if not kubectl_path:
+        print_red("❌ Error: kubectl command not found.")
+        return "Pending (kubectl not found)"
+
+    command = [kubectl_path, "get", "service", service_name,
+               "-o", "jsonpath='{.status.loadBalancer.ingress[0].ip}'"]
+    print(f"Running : {' '.join(command)}")
+    max_attempts = 60
+    for _ in range(max_attempts):
+        try:
+            result = subprocess.run(command, capture_output=True, text=True, check=True)
+            ip_address = result.stdout.strip().replace("'", '')
+            if ip_address:
+                return f"http://{ip_address}:80"
+        except subprocess.CalledProcessError:
+            pass
+        time.sleep(5)
+    
+    print_yellow(
+        f"⚠️ Timed out waiting for external IP for {service_name}. You can check manually with: kubectl get service {service_name}",
+        add_separators=True, upper_space=1)
+    return f"Pending (check with kubectl get service {service_name})"
+
 def wait_and_print_application_information() -> None:
     """
     Waits for the Gradio and Grafana services to be assigned an external IP address and prints 
@@ -73,31 +107,6 @@ def wait_and_print_application_information() -> None:
     """
     print_blue("Waiting for services to get an external IP... (this may take a few minutes)",
                add_separators=True, upper_space=1)
-
-    kubectl_path = get_command_path(command_name="kubectl")
-    if not kubectl_path:
-        print_red("❌ Error: kubectl command not found.")
-        return
-
-    def get_service_url(service_name: str) -> str:
-        command = [kubectl_path, "get", "service", service_name,
-                   "-o", "jsonpath='{.status.loadBalancer.ingress[0].ip}'"]
-        print(f"Running : {' '.join(command)}")
-        max_attempts = 60
-        for _ in range(max_attempts):
-            try:
-                result = subprocess.run(command, capture_output=True, text=True, check=True)
-                ip_address = result.stdout.strip().replace("'", '')
-                if ip_address:
-                    return f"http://{ip_address}:80"
-            except subprocess.CalledProcessError:
-                pass
-            time.sleep(5)
-        
-        print_yellow(
-            f"⚠️ Timed out waiting for external IP for {service_name}. You can check manually with: kubectl get service {service_name}",
-            add_separators=True, upper_space=1)
-        return f"Pending (check with kubectl get service {service_name})"
 
     app_url = get_service_url("gradio-service")
     grafana_url = get_service_url("grafana-service")
