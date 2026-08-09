@@ -17,3 +17,6 @@ wheels/
 *tfstate*
 *terraform.lock*
 *.md
+
+# OS
+.DS_Store
