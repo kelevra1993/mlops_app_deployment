@@ -13,7 +13,7 @@ from app.utilities.inference_utilities import get_inference_server_client
 from app.utilities.constants import (PROJECT_ID,
                                      TABLE_REFERENCE,
                                      BUCKET_NAME,
-                                     INFERRED_IMAGE_PREFIX,
+                                     INFERRED_IMAGES_PREFIX,
                                      PREDICTED_INFROMATION_COLUMNS,
                                      REPLICA_NAME,
                                      TRITON_SERVER_URL)
@@ -71,7 +71,7 @@ with gr.Blocks(title="Triton Inference App") as demo:
             additional_comment=comment,
             default_data_directory=str(default_data_directory),
             client=triton_client,
-            inferred_image_prefix=INFERRED_IMAGE_PREFIX,
+            inferred_images_prefix=INFERRED_IMAGES_PREFIX,
             bucket_name=BUCKET_NAME,
             table_reference=TABLE_REFERENCE,
             bigquery_client=bigquery_client,

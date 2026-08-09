@@ -34,7 +34,7 @@ GPU_CONFIGURATIONS = [
 
 # Google Cloud Storage Constants
 BUCKET_NAME = "machine-learning-ops-images-bucket-2026"
-INFERRED_IMAGE_PREFIX = "inferred_image"
+INFERRED_IMAGES_PREFIX = "inferred_images"
 
 # Environment Variables
 REPLICA_NAME = os.getenv("REPLICA_NAME", "POD NOT IDENTIFIED")

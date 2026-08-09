@@ -13,7 +13,7 @@ from google.cloud import storage
 project_root_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 sys.path.append(project_root_directory)
 
-from app.utilities.constants import PROJECT_ID
+from app.utilities.constants import PROJECT_ID, DATASET_ID, BUCKET_NAME
 from app.utilities.os_utilities import (print_green, print_yellow, print_blue, get_command_path, print_red,
                                         extract_information_from_terraform_variables)
 from app.utilities.gcp_utilities import upload_directory, get_kubernetes_cluster_credentials
@@ -63,12 +63,13 @@ def apply_kubernetes_manifest(manifest_file_path: str, region: str) -> None:
     os.remove(temporary_manifest_path)
 
 
-def wait_and_print_gradio_service_ip() -> None:
+def wait_and_print_application_information() -> None:
     """
-    Waits for the Gradio service to be assigned an external IP address and prints it.
+    Waits for the Gradio service to be assigned an external IP address and prints 
+    the application information including bucket links and BigQuery dataset links.
     
     This function forms part of the MLOps pipeline deployment to provide the user 
-    with a direct, clickable link to access the Gradio frontend once it is live.
+    with direct, clickable links to access the resources once they are live.
     """
     print_blue("Waiting for the Gradio service to get an external IP... (this may take a few minutes)",
                add_separators=True, upper_space=1)
@@ -82,24 +83,37 @@ def wait_and_print_gradio_service_ip() -> None:
                "-o", "jsonpath='{.status.loadBalancer.ingress[0].ip}'"]
     print(f"Running : {' '.join(command)}")
     max_attempts = 60
+    app_url = None
+
     for _ in range(max_attempts):
         try:
             result = subprocess.run(command, capture_output=True, text=True, check=True)
             ip_address = result.stdout.strip().replace("'", '')
             if ip_address:
                 app_url = f"http://{ip_address}:80"
-                print_green(f"🎉 Gradio App is live and accessible at: {app_url}",
-                            add_separators=True, upper_space=1,
-                            lower_space=1)
-                return
+                break
         except subprocess.CalledProcessError:
             pass
 
         time.sleep(5)
 
-    print_yellow(
-        "⚠️ Timed out waiting for external IP. You can check manually with: kubectl get service gradio-service",
-        add_separators=True, upper_space=1)
+    if not app_url:
+        print_yellow(
+            "⚠️ Timed out waiting for external IP. You can check manually with: kubectl get service gradio-service",
+            add_separators=True, upper_space=1)
+        app_url = "Pending (check with kubectl get service gradio-service)"
+
+    models_url = f"https://console.cloud.google.com/storage/browser/{BUCKET_NAME}/served_models"
+    images_url = f"https://console.cloud.google.com/storage/browser/{BUCKET_NAME}/inferred_images"
+    bigquery_url = f"https://console.cloud.google.com/bigquery?ws=!1m4!1m3!3m2!1s{PROJECT_ID}!2s{DATASET_ID}"
+    info_message = (
+        f"🎉 Application Information:\n"
+        f" - Gradio App URL: {app_url}\n"
+        f" - Served Models Bucket: {models_url}\n"
+        f" - Inferred Images Bucket: {images_url}\n"
+        f" - BigQuery Dataset: {bigquery_url}"
+    )
+    print_green(info_message, add_separators=True, upper_space=1, lower_space=1)
 
 
 def main() -> None:
@@ -160,7 +174,7 @@ def main() -> None:
     print("\n--- Kubernetes pods and services are currently being deployed! ---\n")
 
     # Wait for the application to be deployed to get the ip address of the gradio app
-    wait_and_print_gradio_service_ip()
+    wait_and_print_application_information()
 
 
 if __name__ == "__main__":

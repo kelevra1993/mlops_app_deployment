@@ -16,7 +16,7 @@ from app.utilities.gcp_utilities import insert_inference_data_in_bigquery, uploa
 from app.utilities.constants import (PROJECT_ID,
                                      TABLE_REFERENCE,
                                      BUCKET_NAME,
-                                     INFERRED_IMAGE_PREFIX,
+                                     INFERRED_IMAGES_PREFIX,
                                      PREDICTED_INFROMATION_COLUMNS,
                                      REPLICA_NAME,
                                      TRITON_SERVER_URL)
@@ -85,7 +85,7 @@ async def run_inference(image: UploadFile = File(...), additional_comment: str =
             height=300, width=300, keep_ratio=True, center=False)
 
         # 4. Upload the saved image to Google Cloud Storage
-        gcs_blob_name = f"{INFERRED_IMAGE_PREFIX}/{inference_uuid}_{image.filename}"
+        gcs_blob_name = f"{INFERRED_IMAGES_PREFIX}/{inference_uuid}_{image.filename}"
         gcs_uri = upload_object(storage_client, BUCKET_NAME, temporary_image_path, gcs_blob_name)
 
         # 5. Format the comment with the required prefix

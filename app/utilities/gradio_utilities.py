@@ -111,7 +111,7 @@ def upload_data_to_google_cloud(image_name: str, image_path: str, predicted_clas
 
 
 def process_image(user_image_path: str, default_image_name: str, additional_comment: str, default_data_directory: str,
-                  client: Any, inferred_image_prefix: str, bucket_name: str, table_reference: str,
+                  client: Any, inferred_images_prefix: str, bucket_name: str, table_reference: str,
                   bigquery_client: Any, storage_client: Any) -> Tuple[str, float, str, str]:
     """
     Acts as the main handler for the Gradio frontend, orchestrating the end-to-end inference request.
@@ -126,7 +126,7 @@ def process_image(user_image_path: str, default_image_name: str, additional_comm
         additional_comment (str): The user's input from the comment Textbox.
         default_data_directory (str): The directory containing the default test images.
         client (Any): The Triton Inference Server client object.
-        inferred_image_prefix (str): Prefix (folder) in GCS for the uploaded image blob.
+        inferred_images_prefix (str): Prefix (folder) in GCS for the uploaded image blob.
         bucket_name (str): The GCS bucket name for storing the image.
         table_reference (str): The BigQuery table reference for storing inference metadata.
         bigquery_client (Any): The BigQuery client object.
@@ -157,7 +157,7 @@ def process_image(user_image_path: str, default_image_name: str, additional_comm
     # Upload data to bigquery and google cloud storage.
     upload_data_to_google_cloud(image_name=image_name, image_path=image_path,
                                 predicted_class=predicted_class, score=score, additional_comment=additional_comment,
-                                destination_file_prefix=inferred_image_prefix, bucket_name=bucket_name,
+                                destination_file_prefix=inferred_images_prefix, bucket_name=bucket_name,
                                 table_reference=table_reference, bigquery_client=bigquery_client,
                                 storage_client=storage_client)
 
