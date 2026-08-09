@@ -23,12 +23,13 @@ def apply_kubernetes_manifest(manifest_file_path: str, region: str) -> None:
     Applies a specific Kubernetes YAML manifest to the active cluster. 
     This function forms part of the MLOps pipeline to deploy application workloads 
     (like the frontend, API, or Triton Inference Server) programmatically.
-    
+
     Args:
         manifest_file_path (str): The absolute or relative path to the Kubernetes YAML manifest file.
         region (str): The GCP region to inject into the manifest (e.g., replacing REGION_PLACEHOLDER).
     """
-    print_blue(f"Applying Kubernetes configuration: {manifest_file_path}", add_separators=True)
+    print_blue(f"Applying Kubernetes configuration: {manifest_file_path}",
+               add_separators=True, upper_space=True)
 
     kubectl_path = get_command_path(command_name="kubectl")
     if kubectl_path is None:
@@ -67,7 +68,7 @@ def main() -> None:
     It sequentially applies the core application manifests (API, Gradio Frontend, and Triton Backend) 
     to spin up the necessary pods and services in the Google Kubernetes Engine (GKE) cluster.
     """
-    print_green("Starting Kubernetes Pod Creation Automation", add_separators=True)
+    print_green("Starting Kubernetes Pod Creation Automation", add_separators=True, lower_space=1)
 
     terraform_variables_path = os.path.join(project_root_directory, 'infrastructure', 'terraform',
                                             'location.auto.tfvars')
@@ -83,7 +84,8 @@ def main() -> None:
     print_blue("Fetching Kubernetes credentials before proceeding...", add_separators=True)
     get_kubernetes_cluster_credentials(cluster_name="machine-learning-cluster", zone=gcp_zone, project_id=PROJECT_ID)
 
-    print_blue("Uploading models to GCS bucket before applying manifests...", add_separators=True)
+    print_blue("Uploading models to GCS bucket before applying manifests...",
+               add_separators=True, upper_space=1)
     storage_client = storage.Client(project=PROJECT_ID)
     bucket_name = "machine-learning-ops-images-bucket-2026"
     destination_prefix = "served_models"
@@ -93,6 +95,7 @@ def main() -> None:
                      local_directory_path=local_models_directory,
                      destination_prefix=destination_prefix,
                      verbose=False)
+
     link_to_served_models = f"https://console.cloud.google.com/storage/browser/{bucket_name}/{destination_prefix}"
     print_green(f"Successfully uploaded models to GCS At {link_to_served_models} !", add_separators=True)
 
@@ -101,8 +104,8 @@ def main() -> None:
                                             "infrastructure/kubernetes/applications/api.yaml",
                                             "infrastructure/kubernetes/applications/gradio.yaml"]
 
-    print_blue(f"\nTo Watch the pods as they transition from 'Pending' to 'Running' : \n"
-               f" - kubectl get pods -l app=gradio --watch")
+    print_blue(f"To Watch the pods as they transition from 'Pending' to 'Running' : \n"
+               f" - kubectl get pods -l app=gradio --watch", upper_space=1)
 
     for manifest_path in kubernetes_manifest_paths:
         absolute_manifest_path = os.path.join(project_root_directory, manifest_path)
@@ -114,7 +117,10 @@ def main() -> None:
 
         apply_kubernetes_manifest(manifest_file_path=absolute_manifest_path, region=gcp_region)
 
-    print_green("\n🎉 All Kubernetes pods and services have been successfully deployed!\n", add_separators=True)
+    print("\n🎉 Kubernetes pods and services are currently being deployed!\n", )
+
+    print_blue(f"\nTo Watch the pods as they transition from 'Pending' to 'Running' : \n"
+               f" - kubectl get pods -l app=gradio --watch")
 
 
 if __name__ == "__main__":

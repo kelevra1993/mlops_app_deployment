@@ -251,15 +251,15 @@ def get_kubernetes_cluster_credentials(cluster_name: str, zone: str, project_id:
             print("❌ Error: gcloud command not found.")
             return None
 
-        print(f"Fetching credentials for cluster {cluster_name} in zone {zone}...")
+        print(f" - Fetching credentials for cluster {cluster_name} in zone {zone}...")
         command = [
             gcloud_path, "container", "clusters", "get-credentials",
             cluster_name,
             f"--zone={zone}",
             f"--project={project_id}"
         ]
-        
-        subprocess.run(command, check=True)
-        print(f"Successfully fetched credentials for {cluster_name}.")
+
+        subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print(f" - Successfully fetched credentials for {cluster_name}.")
     except subprocess.CalledProcessError as e:
         print(f"Error fetching cluster credentials: {e}")

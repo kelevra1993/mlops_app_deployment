@@ -175,6 +175,12 @@ Once the LoadBalancer is fully provisioned, the Gradio frontend is available to 
 The application is currently live and accessible at: 
 **http://34.107.100.71:80**
 
+**5. Tear Down Applications:**
+*To quickly stop and delete all running pods, deployments, and services in your default namespace without destroying the entire cluster:*
+```bash
+kubectl delete all --all
+```
+
 
 ---
 

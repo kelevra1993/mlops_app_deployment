@@ -37,4 +37,4 @@ ENV PYTHONPATH="/src"
 
 # Command to run the application dynamically based on the APP_TYPE env var
 # Note: Uvicorn syntax is <module>:<variable>, so it is app.main.api_app:app
-CMD ["/bin/bash", "-c", "if [ \"$APP_TYPE\" = \"api\" ]; then /src/app/.venv/bin/uvicorn app.main.api_app:app --host 0.0.0.0 --port 8000; else /src/app/.venv/bin/python app/main/gradio_app.py; fi"]
+CMD ["/bin/bash", "-c", "if [ \"$APP_TYPE\" = \"api\" ]; then /src/app/.venv/bin/uvicorn main.api_app:app --host 0.0.0.0 --port 8000; else /src/app/.venv/bin/python main/gradio_app.py; fi"]
