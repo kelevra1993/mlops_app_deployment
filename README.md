@@ -12,13 +12,11 @@ This repository contains a full MLOps deployment pipeline featuring a **Gradio F
 2. [Architecture Overview](#2-architecture-overview)
 3. [Repository Structure](#3-repository-structure)
 4. [Deployment Steps](#4-deployment-steps)
-5. [Google Cloud SDK (gcloud)](#5-google-cloud-sdk-gcloud)
-6. [Terraform (terraform)](#6-terraform-terraform)
-7. [Docker (docker)](#7-docker-docker)
-8. [Kubernetes (kubectl)](#8-kubernetes-kubectl)
-9. [Next Steps & Roadmap](#9-next-steps--roadmap)
-10. [Terraform State Management](#10-terraform-state-management)
-11. [Debugging History & Corrections](#11-debugging-history--corrections)
+5. [Useful Commands](#5-useful-commands)
+   - [Google Cloud SDK (gcloud)](#google-cloud-sdk-gcloud)
+   - [Terraform (terraform)](#terraform-terraform)
+   - [Docker (docker)](#docker-docker)
+   - [Kubernetes (kubectl)](#kubernetes-kubectl)
 
 ---
 
@@ -167,9 +165,11 @@ Below the output of `create_kubernetes_pods.py`:
 
 ---
 
-## 5. Google Cloud SDK (gcloud)
+## 5. Useful Commands
 
-### Prerequisites & Authentication
+### Google Cloud SDK (gcloud)
+
+#### Prerequisites & Authentication
 Before starting, you must authenticate your local machine with Google Cloud.
 
 **1. Revoke existing credentials (optional, for a clean slate):**
@@ -188,26 +188,26 @@ gcloud auth login
 gcloud auth application-default login
 ```
 
-### Docker Authentication
+#### Docker Authentication
 Configure Docker to authenticate with GCP's Artifact Registry, allowing you to push and pull images securely:
 ```bash
 gcloud auth configure-docker <REGION>-docker.pkg.dev
 ```
 
-### Uploading Models to GCS
+#### Uploading Models to GCS
 Triton expects your ML models to be available in a Google Cloud Storage bucket so it can serve them efficiently on the backend. Since the provided models are stored locally within the `docker/triton/served_models` directory, you need to upload them to the GCS bucket created by Terraform.
 ```bash
 gcloud storage cp -r docker/triton/served_models/ gs://machine-learning-ops-images-bucket-2026/
 ```
 
-### Kubernetes Cluster Access
+#### Kubernetes Cluster Access
 Install the GKE Auth Plugin and fetch the cluster credentials so your local `kubectl` tool can communicate directly with your newly created Kubernetes API server:
 ```bash
 gcloud components install gke-gcloud-auth-plugin
 gcloud container clusters get-credentials machine-learning-cluster --zone <ZONE> --project ml-ops-classifier-app
 ```
 
-### Troubleshooting Stuck Node Provisioning
+#### Troubleshooting Stuck Node Provisioning
 If Terraform hangs while creating node pools, you can use `gcloud` to troubleshoot:
 
 **1. Check cluster status:**
@@ -233,7 +233,7 @@ gcloud container node-pools delete triton-machine-learning-node-pool --cluster m
 
 ---
 
-## 6. Terraform (terraform)
+### Terraform (terraform)
 
 We use Terraform to automatically spin up the VPC, Kubernetes Cluster, Node Pools, Artifact Registry, Storage Buckets, and BigQuery datasets.
 
@@ -262,7 +262,7 @@ terraform apply -auto-approve
 
 ---
 
-## 7. Docker (docker)
+### Docker (docker)
 
 We need to build our Gradio application into a Docker container and push it to the Google Artifact Registry created by Terraform.
 
@@ -294,7 +294,7 @@ docker run --rm mlops-app /src/app/.venv/bin/python app/utilities/inference_util
 
 ---
 
-## 8. Kubernetes (kubectl)
+### Kubernetes (kubectl)
 
 Once the infrastructure is up, images are pushed, and models are uploaded, we deploy the workloads to GKE.
 
@@ -326,8 +326,11 @@ kubectl get service gradio-service --watch
 
 **4. Access the Live Application:**
 Once the LoadBalancer is fully provisioned, the Gradio frontend is available to the public. 
-The application is currently live and accessible at: 
-**http://34.141.154.171:80**
+You can retrieve the public external IP address of your Gradio application by running:
+```bash
+kubectl get service gradio-service
+```
+Look for the `EXTERNAL-IP` column in the output. The application will be accessible at `http://<EXTERNAL-IP>:80`.
 
 **5. Tear Down Applications:**
 *To quickly stop and delete all running pods, deployments, and services in your default namespace without destroying the entire cluster:*
@@ -338,49 +341,7 @@ kubectl delete all --all
 
 ---
 
-## 9. Next Steps & Roadmap
- 
- - Ensure environment variables identifying each machine/pod are injected properly.
- - Finalize Secrets Manager integration.
- - Ensure seamless VPC communication between all components.
- 
- ---
- 
- ## 10. Terraform State Management
- 
- We have migrated the local Terraform state to a Google Cloud Storage (GCS) backend for secure, shared state management. This ensures that the state is not lost and allows for collaboration without state conflicts.
- 
- **Bucket Name**: `gs://ml-ops-infrastructure-2026`
- 
- **Migration Command Used**:
- ```bash
- terraform init -migrate-state
- ```
 
----
 *Note: This infrastructure setup is highly autonomous. Terraform may destroy and recreate resources (like Node Pools) automatically to bypass cloud capacity limits.*
 
----
 
-## 11. Debugging History & Corrections
-
-During the initial deployment of the Kubernetes cluster, a few misconfigurations were successfully debugged and corrected:
-
-1. **Node Pool Name Mismatch (`kubernetes/applications/triton.yaml`)**:
-   - *Bug*: Triton pods were stuck in the `Pending` state.
-   - *Debugging*: We inspected the Terraform configuration and discovered the actual provisioned name for the GPU Node Pool was `triton-reserved-node-pool`. The `triton.yaml` file was incorrectly attempting to schedule pods onto a non-existent `triton-machine-learning-node-pool`.
-   - *Fix*: Updated the `nodeSelector` in `triton.yaml` to exactly match the Terraform node pool name.
-
-2. **Gradio Node Selector Absent (`kubernetes/applications/gradio.yaml`)**:
-   - *Bug*: Gradio pods could randomly be scheduled onto expensive L4 GPU nodes since they lacked any `nodeSelector`.
-   - *Fix*: Added a `nodeSelector` specifically targeting the standard compute `gradio-machine-learning-node-pool` to strictly isolate workload costs.
-
-3. **GCS Bucket IAM Permissions (`terraform/main.tf`)**:
-   - *Bug*: Once Triton was scheduled, the pod continuously crashed with `Permission 'storage.buckets.get' denied`.
-   - *Debugging*: We inspected the Triton Pod logs using `kubectl logs` and identified the container could not fetch the model repository bucket metadata. The Service Account bound to the Kubernetes node pool was originally only granted `roles/storage.objectAdmin`, which allows managing objects inside buckets, but does NOT grant permission to read the bucket's overarching metadata.
-   - *Fix*: Upgraded the Terraform IAM binding for the node service account to `roles/storage.admin`, granting full access to GCS. Re-applied Terraform, waited for IAM propagation, and restarted the pod.
-
-4. **Kubernetes API `i/o timeout` (Local Machine Sync)**:
-   - *Bug*: When running `kubectl apply`, the terminal threw an `i/o timeout` connecting to the Kubernetes control plane IP.
-   - *Debugging*: We realized the infrastructure was spun up on a different machine (or CI/CD runner). Running `terraform plan` locally showed `24 to add`, meaning the local Terraform state was empty and unaware of the active cluster.
-   - *Fix*: We determined that running `terraform apply` locally would mistakenly attempt to recreate the infrastructure. Instead, we simply synced the local machine to the existing cluster by fetching the credentials via `gcloud container clusters get-credentials <CLUSTER_NAME> --region <REGION> --project <PROJECT_ID>`.
