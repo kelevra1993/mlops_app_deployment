@@ -11,13 +11,14 @@ This repository contains a full MLOps deployment pipeline featuring a **Gradio F
 1. [Prerequisites](#1-prerequisites)
 2. [Architecture Overview](#2-architecture-overview)
 3. [Repository Structure](#3-repository-structure)
-4. [Google Cloud SDK (gcloud)](#4-google-cloud-sdk-gcloud)
-5. [Terraform (terraform)](#5-terraform-terraform)
-6. [Docker (docker)](#6-docker-docker)
-7. [Kubernetes (kubectl)](#7-kubernetes-kubectl)
-8. [Next Steps & Roadmap](#8-next-steps--roadmap)
-9. [Terraform State Management](#9-terraform-state-management)
-10. [Debugging History & Corrections](#10-debugging-history--corrections)
+4. [Deployment Steps](#4-deployment-steps)
+5. [Google Cloud SDK (gcloud)](#5-google-cloud-sdk-gcloud)
+6. [Terraform (terraform)](#6-terraform-terraform)
+7. [Docker (docker)](#7-docker-docker)
+8. [Kubernetes (kubectl)](#8-kubernetes-kubectl)
+9. [Next Steps & Roadmap](#9-next-steps--roadmap)
+10. [Terraform State Management](#10-terraform-state-management)
+11. [Debugging History & Corrections](#11-debugging-history--corrections)
 
 ---
 
@@ -78,7 +79,87 @@ The repository is organized into three primary areas to enforce a clear separati
 
 ---
 
-## 4. Google Cloud SDK (gcloud)
+## 4. Deployment Steps
+
+Due to cloud capacity limits, acquiring a GPU as an individual requires finding an available zone. The deployment workflow handles this automatically using Python scripts located in the `scripts/infrastructure` directory, rather than relying on manual commands.
+
+**1. Provision Infrastructure & Define Zone**
+Run the Terraform setup script to iterate through multiple GCP regions, locate an available NVIDIA T4 GPU, and reserve it. This script automatically generates a file that sets the regions and zones for us, and then provisions the required networking, GKE cluster, and node pools.
+```bash
+uv run python scripts/infrastructure/terraform/setup_infrastructure_location.py
+```
+
+*Manual Equivalent*:
+If you were to provision manually after determining your zone, you would execute:
+```bash
+terraform init
+terraform plan
+terraform apply -auto-approve
+```
+
+<div align="center">
+  <img src="README/gpu-reservation.png" alt="GPU Reservation Output" width="800"/>
+</div>
+
+**2. Build and Push the Gradio Image**
+Once the infrastructure (including the Artifact Registry) is ready, we must authenticate Docker with Google Cloud using `gcloud auth configure-docker`. The deployment script handles this authentication automatically before building the Gradio application Docker image and pushing it to the registry.
+```bash
+uv run python scripts/infrastructure/docker/build_and_push.py
+```
+
+*Manual Equivalent*:
+To authenticate manually and push the image for the standard GKE linux/amd64 architecture, you would run:
+```bash
+gcloud auth configure-docker <REGION>-docker.pkg.dev
+/usr/local/bin/docker buildx build --platform linux/amd64 -f app/docker/Dockerfile -t <REGION>-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry/gradio-app:latest app/ --push
+```
+*(Note: Replace `<REGION>` with the region corresponding to the zone selected in step 1, e.g., `europe-west4`)*
+
+<div align="center">
+  <img src="README/build_and_push_docker_image.png" alt="Docker Build and Push Output" width="800"/>
+</div>
+
+**3. Deploy Pods and Containers**
+Finally, the deployment script automates several steps sequentially to bring the application online:
+1. Fetches the Kubernetes cluster credentials.
+2. Uploads the local ML models to the GCS bucket so Triton can serve them.
+3. Injects the region into the Kubernetes YAML manifests.
+4. Applies the monitoring (Prometheus, Grafana) and application (Triton, API, Gradio) manifests.
+5. Waits for the LoadBalancers to spin up and extracts their public IPs.
+```bash
+uv run python scripts/infrastructure/kubernetes/create_kubernetes_pods.py
+```
+
+*Manual Equivalent*:
+To deploy manually, you would need to run the following sequence:
+```bash
+# Fetch cluster credentials
+gcloud container clusters get-credentials machine-learning-cluster --zone <ZONE> --project ml-ops-classifier-app
+
+# Upload Models to GCS
+gcloud storage cp -r infrastructure/docker/triton/served_models/* gs://machine-learning-ops-images-bucket-2026/served_models/
+
+# Apply Manifests (assuming REGION_PLACEHOLDER is manually replaced in the YAML files)
+kubectl apply -f infrastructure/kubernetes/monitoring/prometheus.yaml
+kubectl apply -f infrastructure/kubernetes/monitoring/grafana.yaml
+kubectl apply -f infrastructure/kubernetes/applications/triton.yaml
+kubectl apply -f infrastructure/kubernetes/applications/api.yaml
+kubectl apply -f infrastructure/kubernetes/applications/gradio.yaml
+
+# Get External IPs
+kubectl get service gradio-service --watch
+kubectl get service grafana-service --watch
+```
+
+After successful deployment, the script outputs a clean summary of URLs, including your live Gradio App IP, Grafana dashboard, BigQuery Dataset, and GCS buckets.
+
+<div align="center">
+  <img src="README/pod-creation.png" alt="Pod Creation Output" width="800"/>
+</div>
+
+---
+
+## 5. Google Cloud SDK (gcloud)
 
 ### Prerequisites & Authentication
 Before starting, you must authenticate your local machine with Google Cloud.
@@ -102,7 +183,7 @@ gcloud auth application-default login
 ### Docker Authentication
 Configure Docker to authenticate with GCP's Artifact Registry, allowing you to push and pull images securely:
 ```bash
-gcloud auth configure-docker europe-west3-docker.pkg.dev
+gcloud auth configure-docker <REGION>-docker.pkg.dev
 ```
 
 ### Uploading Models to GCS
@@ -115,7 +196,7 @@ gcloud storage cp -r docker/triton/served_models/ gs://machine-learning-ops-imag
 Install the GKE Auth Plugin and fetch the cluster credentials so your local `kubectl` tool can communicate directly with your newly created Kubernetes API server:
 ```bash
 gcloud components install gke-gcloud-auth-plugin
-gcloud container clusters get-credentials machine-learning-cluster --zone europe-west3-a --project ml-ops-classifier-app
+gcloud container clusters get-credentials machine-learning-cluster --zone <ZONE> --project ml-ops-classifier-app
 ```
 
 ### Troubleshooting Stuck Node Provisioning
@@ -129,22 +210,22 @@ gcloud container clusters list --project=ml-ops-classifier-app
 
 **2. View existing node pools:**
 ```bash
-gcloud container node-pools list --cluster machine-learning-cluster --location europe-west3-a
+gcloud container node-pools list --cluster machine-learning-cluster --location <ZONE>
 ```
 
 **3. Read the error message:**
 ```bash
-gcloud container node-pools describe triton-machine-learning-node-pool --cluster machine-learning-cluster --location europe-west3-a
+gcloud container node-pools describe triton-machine-learning-node-pool --cluster machine-learning-cluster --location <ZONE>
 ```
 
 **4. Delete the stuck node pool manually to unblock Terraform:**
 ```bash
-gcloud container node-pools delete triton-machine-learning-node-pool --cluster machine-learning-cluster --zone europe-west3-a --quiet
+gcloud container node-pools delete triton-machine-learning-node-pool --cluster machine-learning-cluster --zone <ZONE> --quiet
 ```
 
 ---
 
-## 5. Terraform (terraform)
+## 6. Terraform (terraform)
 
 We use Terraform to automatically spin up the VPC, Kubernetes Cluster, Node Pools, Artifact Registry, Storage Buckets, and BigQuery datasets.
 
@@ -173,7 +254,7 @@ terraform apply -auto-approve
 
 ---
 
-## 6. Docker (docker)
+## 7. Docker (docker)
 
 We need to build our Gradio application into a Docker container and push it to the Google Artifact Registry created by Terraform.
 
@@ -187,7 +268,7 @@ docker buildx inspect --bootstrap
 **2. Build and Push the Docker Image:**
 *Builds the image from the local `app` directory and pushes it directly to the Artifact Registry in one step.*
 ```bash
-docker buildx build --platform linux/amd64 -f app/docker/Dockerfile -t europe-west3-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry/gradio-app:v3 --push ./app
+/usr/local/bin/docker buildx build --platform linux/amd64 -f app/docker/Dockerfile -t <REGION>-docker.pkg.dev/ml-ops-classifier-app/machine-learning-artifacts-registry/gradio-app:latest app/ --push
 ```
 
 **3. Run the Container Interactively (Debugging):**
@@ -205,7 +286,7 @@ docker run --rm mlops-app /src/app/.venv/bin/python app/utilities/inference_util
 
 ---
 
-## 7. Kubernetes (kubectl)
+## 8. Kubernetes (kubectl)
 
 Once the infrastructure is up, images are pushed, and models are uploaded, we deploy the workloads to GKE.
 
@@ -249,7 +330,7 @@ kubectl delete all --all
 
 ---
 
-## 8. Next Steps & Roadmap
+## 9. Next Steps & Roadmap
  
  - Ensure environment variables identifying each machine/pod are injected properly.
  - Finalize Secrets Manager integration.
@@ -257,7 +338,7 @@ kubectl delete all --all
  
  ---
  
- ## 9. Terraform State Management
+ ## 10. Terraform State Management
  
  We have migrated the local Terraform state to a Google Cloud Storage (GCS) backend for secure, shared state management. This ensures that the state is not lost and allows for collaboration without state conflicts.
  
@@ -273,7 +354,7 @@ kubectl delete all --all
 
 ---
 
-## 10. Debugging History & Corrections
+## 11. Debugging History & Corrections
 
 During the initial deployment of the Kubernetes cluster, a few misconfigurations were successfully debugged and corrected:
 
