@@ -65,13 +65,13 @@ def apply_kubernetes_manifest(manifest_file_path: str, region: str) -> None:
 
 def wait_and_print_application_information() -> None:
     """
-    Waits for the Gradio service to be assigned an external IP address and prints 
-    the application information including bucket links and BigQuery dataset links.
+    Waits for the Gradio and Grafana services to be assigned an external IP address and prints 
+    the application information including bucket links, BigQuery dataset links, and Grafana login.
     
     This function forms part of the MLOps pipeline deployment to provide the user 
     with direct, clickable links to access the resources once they are live.
     """
-    print_blue("Waiting for the Gradio service to get an external IP... (this may take a few minutes)",
+    print_blue("Waiting for services to get an external IP... (this may take a few minutes)",
                add_separators=True, upper_space=1)
 
     kubectl_path = get_command_path(command_name="kubectl")
@@ -79,29 +79,28 @@ def wait_and_print_application_information() -> None:
         print_red("❌ Error: kubectl command not found.")
         return
 
-    command = [kubectl_path, "get", "service", "gradio-service",
-               "-o", "jsonpath='{.status.loadBalancer.ingress[0].ip}'"]
-    print(f"Running : {' '.join(command)}")
-    max_attempts = 60
-    app_url = None
-
-    for _ in range(max_attempts):
-        try:
-            result = subprocess.run(command, capture_output=True, text=True, check=True)
-            ip_address = result.stdout.strip().replace("'", '')
-            if ip_address:
-                app_url = f"http://{ip_address}:80"
-                break
-        except subprocess.CalledProcessError:
-            pass
-
-        time.sleep(5)
-
-    if not app_url:
+    def get_service_url(service_name: str) -> str:
+        command = [kubectl_path, "get", "service", service_name,
+                   "-o", "jsonpath='{.status.loadBalancer.ingress[0].ip}'"]
+        print(f"Running : {' '.join(command)}")
+        max_attempts = 60
+        for _ in range(max_attempts):
+            try:
+                result = subprocess.run(command, capture_output=True, text=True, check=True)
+                ip_address = result.stdout.strip().replace("'", '')
+                if ip_address:
+                    return f"http://{ip_address}:80"
+            except subprocess.CalledProcessError:
+                pass
+            time.sleep(5)
+        
         print_yellow(
-            "⚠️ Timed out waiting for external IP. You can check manually with: kubectl get service gradio-service",
+            f"⚠️ Timed out waiting for external IP for {service_name}. You can check manually with: kubectl get service {service_name}",
             add_separators=True, upper_space=1)
-        app_url = "Pending (check with kubectl get service gradio-service)"
+        return f"Pending (check with kubectl get service {service_name})"
+
+    app_url = get_service_url("gradio-service")
+    grafana_url = get_service_url("grafana-service")
 
     models_url = f"https://console.cloud.google.com/storage/browser/{BUCKET_NAME}/served_models"
     images_url = f"https://console.cloud.google.com/storage/browser/{BUCKET_NAME}/inferred_images"
@@ -109,6 +108,7 @@ def wait_and_print_application_information() -> None:
     info_message = (
         f"🎉 Application Information:\n"
         f" - Gradio App URL: {app_url}\n"
+        f" - Grafana URL: {grafana_url} (Login: admin / admin)\n"
         f" - Served Models Bucket: {models_url}\n"
         f" - Inferred Images Bucket: {images_url}\n"
         f" - BigQuery Dataset: {bigquery_url}"
@@ -154,7 +154,9 @@ def main() -> None:
     print_green(f"Successfully uploaded models to GCS At {link_to_served_models} !", add_separators=True)
 
     # Define the core application manifests that need to be deployed
-    kubernetes_manifest_paths: List[str] = ["infrastructure/kubernetes/applications/triton.yaml",
+    kubernetes_manifest_paths: List[str] = ["infrastructure/kubernetes/monitoring/prometheus.yaml",
+                                            "infrastructure/kubernetes/monitoring/grafana.yaml",
+                                            "infrastructure/kubernetes/applications/triton.yaml",
                                             "infrastructure/kubernetes/applications/api.yaml",
                                             "infrastructure/kubernetes/applications/gradio.yaml"]
 
