@@ -2,6 +2,7 @@ import sys
 import os
 import subprocess
 import shutil
+import time
 
 from typing import List
 
@@ -62,6 +63,45 @@ def apply_kubernetes_manifest(manifest_file_path: str, region: str) -> None:
     os.remove(temporary_manifest_path)
 
 
+def wait_and_print_gradio_service_ip() -> None:
+    """
+    Waits for the Gradio service to be assigned an external IP address and prints it.
+    
+    This function forms part of the MLOps pipeline deployment to provide the user 
+    with a direct, clickable link to access the Gradio frontend once it is live.
+    """
+    print_blue("Waiting for the Gradio service to get an external IP... (this may take a few minutes)",
+               add_separators=True, upper_space=1)
+
+    kubectl_path = get_command_path(command_name="kubectl")
+    if not kubectl_path:
+        print_red("❌ Error: kubectl command not found.")
+        return
+
+    command = [kubectl_path, "get", "service", "gradio-service",
+               "-o", "jsonpath='{.status.loadBalancer.ingress[0].ip}'"]
+    print(f"Running : {' '.join(command)}")
+    max_attempts = 60
+    for _ in range(max_attempts):
+        try:
+            result = subprocess.run(command, capture_output=True, text=True, check=True)
+            ip_address = result.stdout.strip().replace("'", '')
+            if ip_address:
+                app_url = f"http://{ip_address}:80"
+                print_green(f"🎉 Gradio App is live and accessible at: {app_url}",
+                            add_separators=True, upper_space=1,
+                            lower_space=1)
+                return
+        except subprocess.CalledProcessError:
+            pass
+
+        time.sleep(5)
+
+    print_yellow(
+        "⚠️ Timed out waiting for external IP. You can check manually with: kubectl get service gradio-service",
+        add_separators=True, upper_space=1)
+
+
 def main() -> None:
     """
     Automates the Kubernetes deployment process for the MLOps pipeline.
@@ -117,10 +157,9 @@ def main() -> None:
 
         apply_kubernetes_manifest(manifest_file_path=absolute_manifest_path, region=gcp_region)
 
-    print("\n🎉 Kubernetes pods and services are currently being deployed!\n", )
+    print("\n--- Kubernetes pods and services are currently being deployed! ---\n")
 
-    print_blue(f"\nTo Watch the pods as they transition from 'Pending' to 'Running' : \n"
-               f" - kubectl get pods -l app=gradio --watch")
+    wait_and_print_gradio_service_ip()
 
 
 if __name__ == "__main__":
