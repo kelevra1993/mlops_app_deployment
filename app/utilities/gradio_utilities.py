@@ -146,7 +146,7 @@ def process_image(user_image_path: str, default_image_name: str, additional_comm
         return image_name, 0.0, "Failed to load image", None
 
     # Run inference
-    print_blue(f"Running Inference On {image_name}")
+    print_blue(f"Running Inference On {image_name}",upper_space=1)
     predicted_class, score = perform_inference(image=image_to_process,
                                                client=client,
                                                input_tensor='Input-Producer/Placeholders/Images/Placeholder_1:0',
