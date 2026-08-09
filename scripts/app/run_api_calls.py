@@ -5,7 +5,8 @@ import random
 import glob
 import requests
 import threading
-from typing import Optional, List
+import multiprocessing
+from typing import Optional, List, Tuple
 import concurrent.futures
 from tqdm import tqdm
 
@@ -48,6 +49,7 @@ def get_api_url() -> Optional[str]:
 # Thread-local storage to hold one Session per thread, ensuring thread safety and reusing TCP connections
 thread_local = threading.local()
 
+
 def get_session() -> requests.Session:
     if not hasattr(thread_local, "session"):
         thread_local.session = requests.Session()
@@ -70,14 +72,38 @@ def make_single_request(api_url: str, image_name: str, image_bytes: bytes) -> bo
     try:
         files = {"image": (image_name, image_bytes, "image/png")}
         data = {"additional_comment": "Load Testing for Grafana (Extreme)"}
-        
+
         response = session.post(api_url, files=files, data=data)
         return response.status_code == 200
     except Exception:
         return False
 
 
-def run_inference_loops(api_url: str, num_iterations: int, number_workers: int = 50) -> None:
+def worker_process_task(api_url: str, num_requests: int, loaded_images: List[Tuple[str, bytes]], num_threads: int) -> \
+Tuple[int, int]:
+    """
+    Executes a chunk of requests in a separate Python process using an internal ThreadPoolExecutor.
+    """
+    successful = 0
+    failed = 0
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+        futures = []
+        for _ in range(num_requests):
+            img_name, img_bytes = random.choice(loaded_images)
+            futures.append(executor.submit(make_single_request, api_url, img_name, img_bytes))
+
+        for future in concurrent.futures.as_completed(futures):
+            if future.result():
+                successful += 1
+            else:
+                failed += 1
+
+    return successful, failed
+
+
+def run_inference_loops(api_url: str, num_iterations: int, number_processes: int = 0,
+                        threads_per_process: int = 50) -> None:
     """
     Executes a continuous loop of POST requests to the API using multithreading to simulate high concurrent traffic.
     This function forms part of the MLOps pipeline load testing suite, designed to 
@@ -86,7 +112,8 @@ def run_inference_loops(api_url: str, num_iterations: int, number_workers: int =
     Args:
         api_url (str): The complete URL of the inference endpoint to send requests to.
         num_iterations (int): The total number of requests to execute.
-        number_workers (int): The number of concurrent threads to use for sending requests.
+        number_processes (int): The number of CPU cores to utilize. 0 means use all available cores.
+        threads_per_process (int): The number of concurrent threads per process.
     """
     data_directory = os.path.join(project_root_directory, "app", "data")
     image_paths = glob.glob(os.path.join(data_directory, "*.png"))
@@ -100,29 +127,37 @@ def run_inference_loops(api_url: str, num_iterations: int, number_workers: int =
     for path in image_paths:
         with open(path, "rb") as f:
             loaded_images.append((os.path.basename(path), f.read()))
-        
-    print_blue(output=f"Starting {num_iterations} concurrent API calls to {api_url}...", add_separators=True)
 
-    successful_calls = 0
-    failed_calls = 0
+    if number_processes <= 0:
+        number_processes = multiprocessing.cpu_count() or 4
 
-    # We use ThreadPoolExecutor to fire requests in parallel.
-    with concurrent.futures.ThreadPoolExecutor(max_workers=number_workers) as executor:
-        # Generate the tasks using randomly selected pre-loaded images
+    requests_per_process = num_iterations // number_processes
+    remainder = num_iterations % number_processes
+
+    print_blue(
+        output=f"Spawning {number_processes} independent processes (with {threads_per_process} threads each) to execute {num_iterations} API calls...",
+        add_separators=True)
+
+    total_successful = 0
+    total_failed = 0
+
+    # We use ProcessPoolExecutor to bypass the GIL entirely and saturate the CPU
+    with concurrent.futures.ProcessPoolExecutor(max_workers=number_processes) as executor:
         futures = []
-        for _ in range(num_iterations):
-            img_name, img_bytes = random.choice(loaded_images)
-            futures.append(executor.submit(make_single_request, api_url, img_name, img_bytes))
+        for i in range(number_processes):
+            # Distribute remainder to the first process
+            reqs = requests_per_process + (remainder if i == 0 else 0)
+            if reqs > 0:
+                futures.append(executor.submit(worker_process_task, api_url, reqs, loaded_images, threads_per_process))
 
-        # Use tqdm to track completed futures as they finish
-        for future in tqdm(concurrent.futures.as_completed(futures), total=num_iterations, desc="API Inference Loop",
-                           unit="call"):
-            if future.result():
-                successful_calls += 1
-            else:
-                failed_calls += 1
+        # Use tqdm to track progress as entire chunks/processes finish
+        for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures),
+                           desc="Processing Multicore Batches", unit="batch"):
+            succ, fail = future.result()
+            total_successful += succ
+            total_failed += fail
 
-    print_green(output=f"Load Test Complete! Success: {successful_calls} | Failed: {failed_calls}", add_separators=True)
+    print_green(output=f"Load Test Complete! Success: {total_successful} | Failed: {total_failed}", add_separators=True)
 
 
 def main() -> None:
@@ -132,7 +167,7 @@ def main() -> None:
     """
     api_url = get_api_url()
     if api_url:
-        run_inference_loops(api_url=api_url, num_iterations=10000, number_workers=200)
+        run_inference_loops(api_url=api_url, num_iterations=10000, number_processes=0, threads_per_process=50)
 
 
 if __name__ == "__main__":
