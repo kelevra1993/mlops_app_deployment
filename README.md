@@ -17,6 +17,7 @@ This repository contains a full MLOps deployment pipeline featuring a **Gradio F
    - [Terraform (terraform)](#terraform-terraform)
    - [Docker (docker)](#docker-docker)
    - [Kubernetes (kubectl)](#kubernetes-kubectl)
+6. [Application Features](#6-application-features)
 
 ---
 
@@ -345,3 +346,12 @@ kubectl delete all --all
 *Note: This infrastructure setup is highly autonomous. Terraform may destroy and recreate resources (like Node Pools) automatically to bypass cloud capacity limits.*
 
 
+---
+
+## 6. Application Features
+
+Below is a detailed view of the live Gradio application with annotations highlighting its different features.
+
+<div align="center">
+  <img src="README/app-details.png" alt="Application Features and Annotations" width="800"/>
+</div>
