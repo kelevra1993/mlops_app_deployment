@@ -145,6 +145,13 @@ resource "google_project_iam_member" "node_service_account_bigquery" {
   member  = "serviceAccount:${google_service_account.kubernetes_node_service_account.email}"
 }
 
+# Allows our nodes to run BigQuery jobs (required for fetching data using SELECT queries)
+resource "google_project_iam_member" "node_service_account_bigquery_jobuser" {
+  project = "ml-ops-classifier-app"
+  role    = "roles/bigquery.jobUser"
+  member  = "serviceAccount:${google_service_account.kubernetes_node_service_account.email}"
+}
+
 # 6.a. Define the Custom Node Pool (The Worker Virtual Machines)
 # First we start with nodes that only have CPUs
 resource "google_container_node_pool" "gradio_nodes" {
