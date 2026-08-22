@@ -1,5 +1,7 @@
 terraform {
   backend "gcs" {
+    # This is where we will store the terraform state file.
+    # We chose to store it on google cloud for management of infrastructure from different devices
     bucket = "ml-ops-infrastructure-2026"
     prefix = "terraform/state"
   }
